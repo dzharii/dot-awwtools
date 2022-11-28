@@ -2,6 +2,7 @@
 @rem and pass it to git commit -am
 
 set message=%*
+set currentDate=%date%
 
 @rem if message is empty, set it to "update currentDate"
 if "%message%"=="" (
