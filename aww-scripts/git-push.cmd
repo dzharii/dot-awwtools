@@ -9,7 +9,7 @@ if "%message%"=="" (
 )
 
 git add --all
-git commit -am "$message"
+git commit -am "%message%"
 git pull
 git push
 git status
