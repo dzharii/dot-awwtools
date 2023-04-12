@@ -14,7 +14,7 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 $ErrorActionPreference = "Stop"
 
 # Set task name
-$taskName = "SHUT UP AND SHUT DOWN!"
+$taskName = "SHUT DOWN WINDOWS!"
 
 # Split the At parameter to get the hour and minute
 $hour, $minute = $At.Split(':')
