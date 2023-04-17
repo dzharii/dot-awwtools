@@ -7,7 +7,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-if (!$kind.Trim() {
+if (!$kind.Trim()) {
     Write-Host "The '-kind' (console... mvc)  parameter is required and must not be empty." -ForegroundColor Red
     exit 1
 }
