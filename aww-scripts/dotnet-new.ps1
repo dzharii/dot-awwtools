@@ -1,9 +1,24 @@
 param(
-    [string]$kind = "console",
-    [string]$name = "Project$(Get-Date -Format 'yyyyMMddHHmmss')"
+    [Parameter(Mandatory=$true)]
+    [string]$kind,
+    [Parameter(Mandatory=$true)]
+    [string]$name
 )
 
 $ErrorActionPreference = "Stop"
+
+if (!$kind.Trim()) {
+    Write-Host "The '-kind' (console... mvc)  parameter is required and must not be empty." -ForegroundColor Red
+    exit 1
+}
+
+if (!$name.Trim()) {
+    Write-Host "The '-name' (progject name) parameter is required and must not be empty." -ForegroundColor Red
+    exit 1
+}
+
+#  Capitalize first letter of kind
+$kindName = $kind.Substring(0, 1).ToUpper() + $kind.Substring(1)
 
 try {
     # Create a new directory for the solution
@@ -18,7 +33,7 @@ try {
     Invoke-Expression $command | Out-Host
 
     # Create the specified project type
-    $projectName = "$($name)$kind"
+    $projectName = "$($name)$($kindName)"
     $command = "dotnet new $kind -n `"$($projectName)`""
     Write-Host "Executing: $command"
     Invoke-Expression $command | Out-Host
