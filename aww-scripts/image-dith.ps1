@@ -10,7 +10,7 @@ if ($null -ne $clipboard) {
     $clipboard.Save($tempFile, [System.Drawing.Imaging.ImageFormat]::Png)
 
     # & magick convert "$tempFile" -dither Riemersma -colors 256 "$ditheredFile"
-    & magick convert "$tempFile" -sepia-tone 90% -dither Riemersma -colors 16 -mattecolor "#704214" -frame 10x10 "$ditheredFile"
+    & magick convert "$tempFile" -dither Riemersma -colors 16 -mattecolor "#704214" -frame 10x10 "$ditheredFile"
 
     # Load the dithered image
     $ditheredImage = [System.Drawing.Image]::FromFile($ditheredFile)
