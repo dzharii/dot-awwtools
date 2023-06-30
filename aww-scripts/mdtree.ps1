@@ -8,26 +8,44 @@ $ErrorActionPreference = "Stop"
 # $host.ui.RawUI.WindowTitle = "My Title"
 $ThisScriptFolderPath = Split-Path -Parent $MyInvocation.MyCommand.Definition
 
+function Format-MarkdownCodeBlock($content, $type) {
+    $result = "``````$type`n"
+    $result += $content
+    $result += "`n``````"
+    return $result
+}
+
 
 $extensions = @(
     "*.scala"
     "*.json"
     "*.sh"
     "*.ps1"
+    "*.rplc"
+    "*.rpli"
+    "*.xml"
+    "*.ini"
+    "*.md"
 )
 
 $files = Get-ChildItem -Path $Path -Include $extensions -Recurse
 
 
-"Files: $files"
-
 $markdown = ""
 
 foreach ($file in $files) {
+    Write-Host "Processing:`n - $($file.FullName)"
+
+    $fileContent = Get-Content $file.FullName -Raw
+    $fileExtension = $file.Extension.Substring(1)
+
     $markdown += "## $($file.Name)`n`n"
-    $markdown += "``````$($file.Extension.Substring(1))`n"
-    $markdown += Get-Content $file.FullName -Raw
-    $markdown += "`n``````"
+
+    if ($fileExtension -eq "md") {
+        $markdown += $fileContent
+    } else {
+        $markdown += Format-MarkdownCodeBlock $fileContent $fileExtension
+    }
     $markdown += "`n`n"
 }
 
