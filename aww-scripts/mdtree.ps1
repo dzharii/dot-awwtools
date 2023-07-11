@@ -14,6 +14,12 @@ $extensions = @(
     "*.json"
     "*.sh"
     "*.ps1"
+    "*.h"
+    "*.hpp"
+    "*.c"
+    "*.cpp"
+    "*.cxx"
+
 )
 
 $files = Get-ChildItem -Path $Path -Include $extensions -Recurse
