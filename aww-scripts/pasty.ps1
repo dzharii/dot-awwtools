@@ -1,12 +1,14 @@
-param(
-    [Parameter(Mandatory=$true)]
-    [string]$FileName
-)
-
 $ErrorActionPreference = "Stop"
 
-# $host.ui.RawUI.WindowTitle = "My Title"
-$ThisScriptFolderPath = Split-Path -Parent $MyInvocation.MyCommand.Definition
+$appFile = 'index.html'
+$myPath = $MyInvocation.MyCommand.Path
+$myDirectory = Split-Path $myPath -Parent
 
-Write-Host "Hello World"
+$appFilePath = Join-Path -Path $myDirectory -ChildPath "assets-pasty"
+$appFilePath = Join-Path -Path  $appFilePath -ChildPath $appFile
+$appUriPath = (New-Object System.Uri("$appFilePath")).AbsoluteUri
+$uriPath.AbsoluteUri
+$urlArgs = [System.String]::Join(" ", $args)
 
+$completeUrl = "`"${appUriPath}?q=${urlArgs}`""
+Start-Process msedge $completeUrl
