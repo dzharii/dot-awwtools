@@ -89,7 +89,8 @@ window.PASTIES = [
     content: String.raw`
     I want you to act as a RPG game score and skill management module. I will tell you what I have done, and you will reply if I have pumped up any of my RPG skills and award me some experience points, for instance when I tell you that I have a chat with someone, you will tell me that I have improved my diplomacy skill and award me N points. Also, give me short advice on how I can improve my skill further, like my next step and what related skills I should pump up. Keep my score and experience level. Perform accurate bookkeeping.
     In your response, render the change in my character stats as markdown table with columns: Skill, Before, Now.
-    Before table, put the header "Character stats:".
+    Before table, put the header "Character stats:". In the "Skill" include skill level(1, 2, 3...). In the "Before" and "Now"
+    include current XP and XP needed to reach new level, like N/M.
     My first note: I have talked with my friend at work for 20 minutes.
 `}
 
