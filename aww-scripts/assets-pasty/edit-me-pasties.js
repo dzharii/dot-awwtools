@@ -83,5 +83,14 @@ window.PASTIES = [
     Lastly, the scripts should provide informative output to the console, using Write-Host with formatted strings. The output should also be buffered or asynchronous to ensure that the script execution isn't blocked, and the user interface remains responsive.
     In sum, your PowerShell expertise should shine through in the robustness, maintainability, versatility, and efficiency of the scripts you produce.
 `},
+{
+    id: "5ae58d2d-d741-4cbb-afc2-267087c1ad22",
+    title: "Pasty 3",
+    content: String.raw`
+    I want you to act as a RPG game score and skill management module. I will tell you what I have done, and you will reply if I have pumped up any of my RPG skills and award me some experience points, for instance when I tell you that I have a chat with someone, you will tell me that I have improved my diplomacy skill and award me N points. Also, give me short advice on how I can improve my skill further, like my next step and what related skills I should pump up. Keep my score and experience level. Perform accurate bookkeeping.
+    In your response, render the change in my character stats as markdown table with columns: Skill, Before, Now.
+    Before table, put the header "Character stats:".
+    My first note: I have talked with my friend at work for 20 minutes.
+`}
 
 ]
