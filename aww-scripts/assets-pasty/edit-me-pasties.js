@@ -69,7 +69,6 @@ window.PASTIES = [
     information or assistance.
 `
 },
-
 {
     id: "0909bad9-8e0e-44f2-98bc-504dc5badc2e",
     title: "Pasty 3",
@@ -85,13 +84,74 @@ window.PASTIES = [
 `},
 {
     id: "5ae58d2d-d741-4cbb-afc2-267087c1ad22",
-    title: "Pasty 3",
+    title: "Pasty 4",
     content: String.raw`
     I want you to act as a RPG game score and skill management module. I will tell you what I have done, and you will reply if I have pumped up any of my RPG skills and award me some experience points, for instance when I tell you that I have a chat with someone, you will tell me that I have improved my diplomacy skill and award me N points. Also, give me short advice on how I can improve my skill further, like my next step and what related skills I should pump up. Keep my score and experience level. Perform accurate bookkeeping.
     In your response, render the change in my character stats as markdown table with columns: Skill, Before, Now.
     Before table, put the header "Character stats:". In the "Skill" include skill level(1, 2, 3...). In the "Before" and "Now"
     include current XP and XP needed to reach new level, like N/M.
     My first note: I have talked with my friend at work for 20 minutes.
+    These are examples of a good answers (do not include [EXAMPLE PROMPT], [EXAMPLE RESPONSE BEGIN], [EXAMPLE END]
+    in **your** response):
+    [EXAMPLE PROMPT]
+    I've drank whole milk with cookie
+    [EXAMPLE RESPONSE BEGIN]
+    **Character stats:**
+
+    | Skill (Level)   | Before (XP/Next Level) | Now (XP/Next Level) |
+    |-----------------|------------------------|---------------------|
+    | Self-Care (2)   | 60/100                 | 65/100              |
+    | Nutrition (2)   | 5/100                  | 10/100              |
+    | Other skills     | Not yet discovered     | Not yet discovered |
+
+    ---
+
+    Drinking whole milk and eating a cookie added a small boost to your skills.
+
+    **Update:**
+
+    - Self-Care: Taking a moment to enjoy a treat is a form of self-care. Even small pleasures can increase your overall wellbeing. +5 Exp.
+    - Nutrition: While cookies and milk might not be the healthiest option, they provide an understanding of a balanced diet and portion control. +5 Exp.
+
+    **Advice:**
+
+    Engaging in self-care is crucial to maintaining a healthy lifestyle. Remember to balance your treats with a nutritious diet and regular physical exercise.
+
+    As for nutrition, consider learning more about different food groups and their nutritional values to further enhance this skill. Perhaps you could try cooking a new recipe or learn about how diet impacts your overall health.
+    [EXAMPLE END]
+
+    [EXAMPLE PROMPT]
+    Chat, give me a quest to wake up, have breakfast, commute to work by bus
+    [EXAMPLE RESPONSE BEGIN]
+    **Quest: Rise and Shine**
+
+    **Objective:**
+
+    1. Wake up and start your day on a positive note.
+    2. Prepare a balanced and nutritious breakfast.
+    3. Commute to work using public transportation (bus).
+
+    **Tasks:**
+
+    1. **Awakening:** Wake up early, perform your morning routine and do a quick 5-minute stretch or light exercise to get the blood flowing.
+
+    2. **Culinary Skills:** For breakfast, prepare something balanced and nutritious. It could be oatmeal with fruits, whole grain toast with avocado, or an egg white omelet. Try to include proteins, complex carbs, and healthy fats.
+
+    3. **Transportation:** Plan your bus route to work ahead of time. Make sure to leave with enough time to get to your bus stop and try to arrive at work a few minutes early.
+
+    4. **Environmentally Friendly:** While on the bus, consider doing something productive like reading, listening to a podcast, or even meditating. Remember, by using public transportation you're reducing your carbon footprint!
+
+    **Reward:**
+
+    Successful completion of this quest will award you with:
+
+    - +10 Exp in Time Management
+    - +10 Exp in Nutrition
+    - +10 Exp in Self-Care
+    - +10 Exp in Environmental Awareness
+
+    This quest will help you enhance essential skills for your everyday life, making your routine more effective and enjoyable!
+    [EXAMPLE END]
 `}
 
 ]
