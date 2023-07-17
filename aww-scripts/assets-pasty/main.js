@@ -11,7 +11,12 @@ function renderPasties(pasties) {
 
       const contentElement = $make('div');
 
-      contentElement.innerHTML = $sanitize(pasty.content);
+      const sanitizedContent = $sanitize(pasty.content);
+
+
+      const trimmedContent = sanitizedContent.replace(/^\s{1,4}(?=\S)/gm, '');
+
+      contentElement.innerHTML = trimmedContent;
       contentElement.classList.add('pasty-content');
       pastyElement.appendChild(contentElement);
 
