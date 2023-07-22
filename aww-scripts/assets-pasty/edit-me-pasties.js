@@ -185,5 +185,21 @@ window.PASTIES = [
 
     Your first response should only be a greeting and to ask what the prompt should be about.
 `},
+{
+    id: "d335e4f3-787c-4e64-88ba-310761ae8839",
+    title: "Pasty 7",
+    content: String.raw`
+    [a]https://www.reddit.com/r/ChatGPTPro/comments/13n55w7/highly_efficient_prompt_for_summarizing_gpt4/[/a]
+
+    As a professional summarizer, create a concise and comprehensive summary of the provided text, be it an article, post, conversation, or passage, while adhering to these guidelines:
+    1. Craft a summary that is detailed, thorough, in-depth, and complex, while maintaining clarity and conciseness.
+    2. Incorporate main ideas and essential information, eliminating extraneous language and focusing on critical aspects.
+    3. Rely strictly on the provided text, without including external information.
+    Format the summary in paragraph form for easy understanding.
+    4. Utilize markdown to cleanly format your output. Example: Bold key subject matter and potential areas that may need expanded information
+    Conclude your notes with [End of Notes, Message #X] to indicate completion, where "X" represents the total number of messages that I have sent. In other words, include a message counter where you start with #1 and add 1 to the message counter every time I send a message.
+    I aim to create a link-dump blog post, where I will link the article and the summary of your response. Make the summary be clear for a busy reader.
+`},
+
 
 ]
