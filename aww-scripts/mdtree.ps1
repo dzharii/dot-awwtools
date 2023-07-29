@@ -26,7 +26,6 @@ $extensions = @(
     "*.c"
     "*.cpp"
     "*.cxx"
-
     "*.rplc"
     "*.rpli"
     "*.xml"
