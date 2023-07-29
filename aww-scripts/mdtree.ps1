@@ -2,6 +2,7 @@ param (
     [string]$Path = ".",
     [string]$FilterPath = "",
     [string]$FilterName = "",
+    [string]$Include = "",
     [string]$Output = "output.md"
 )
 
@@ -61,10 +62,25 @@ $extensions = @(
     "*.md"
 )
 
+if ($Include -ne "") {
+    $extensions = $Include.Split(",")
+}
+
 $files = Get-ChildItem -Path $Path -Include $extensions -Recurse
 
-
 $markdown = ""
+$markdown += "# MDTREE (``$($Output)``)`n"
+$markdown += "`n`n"
+$markdown += "- `$Path = ``$($Path)```n"
+$markdown += "- `$FilterPath = ``$($FilterPath)```n"
+$markdown += "- `$FilterName = ``$($FilterName)```n"
+$markdown += "- `$Include = ``$($Include)```n"
+$markdown += "- `$Output = ``$($Output)```n"
+$markdown += "`n`n"
+$markdown += "Generated on ``$((Get-Date).ToString('yyyy-MM-dd HH:mm:ss'))``"
+$markdown += "`n`n"
+$markdown += "[TOC]"
+$markdown += "`n`n"
 
 foreach ($file in $files) {
     if (-not $pathFilterRegexp.ShouldKeepFile($file.FullName)) {
@@ -83,7 +99,7 @@ foreach ($file in $files) {
     $fileExtension = $file.Extension.Substring(1)
 
     $relativePath = $file.FullName.Replace((Resolve-Path $Path).Path + '\', '')
-    $markdown += "## $($relativePath)`n`n"
+    $markdown += "## File content ``$($relativePath)``:`n`n"
 
     if ($fileExtension -eq "md") {
         $markdown += $fileContent
