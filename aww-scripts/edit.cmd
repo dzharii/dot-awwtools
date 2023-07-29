@@ -2,8 +2,10 @@
 pushd %~dp0
 
 :: Open Visual Studio Code in the script's directory
-start code .
+code .
 
 :: Use popd to return to the original directory
 popd
+
+exit
 
