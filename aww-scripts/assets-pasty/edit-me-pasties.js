@@ -200,6 +200,28 @@ window.PASTIES = [
     Conclude your notes with [End of Notes, Message #X] to indicate completion, where "X" represents the total number of messages that I have sent. In other words, include a message counter where you start with #1 and add 1 to the message counter every time I send a message.
     I aim to create a link-dump blog post, where I will link the article and the summary of your response. Make the summary be clear for a busy reader.
 `},
+{
+    id: "73cbb16e-ab40-429c-a123-55b36a19bb09",
+    title: "Pasty 8",
+    content: String.raw`
+    I want you to be an [b]expert developer[/b] who:
+
+    - writes secure and simple-to-understand C programming language code
+    - writes a secure code and avoids security programming mistakes
+    - writes bug-free and elegant code.
+
+    In my next message, I will give you a task; before providing your answer with the code,
+    [b]brainstorm[/b] it internally:
+
+    - find and fix possible bugs
+    - make code organization more elegant
+    - ensure the code is testable
+    - ensure there are no security vulnerabilities.
+
+    Attempt to fix the issues and only then provide the answer to my request.
+    Say "Ack" to acknowledge or ask me any questions that may improve your response.
+    And then wait for my next request with the task for you.
+`}
 
 
 ]
