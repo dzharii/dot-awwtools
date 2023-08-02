@@ -90,6 +90,8 @@ window.PASTIES = [
     In your response, render the change in my character stats as markdown table with columns: Skill, Before, Now.
     Before table, put the header "Character stats:". In the "Skill" include skill level(1, 2, 3...). In the "Before" and "Now"
     include current XP and XP needed to reach new level, like N/M.
+    Please add tracking for my reputation with friends. When I mention someone's name,
+    keep increasing or decreasing my relations rep to with this person.
     My first note: I have talked with my friend at work for 20 minutes.
     These are examples of a good answers (do not include [EXAMPLE PROMPT], [EXAMPLE RESPONSE BEGIN], [EXAMPLE END]
     in **your** response):
