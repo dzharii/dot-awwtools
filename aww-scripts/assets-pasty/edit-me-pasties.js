@@ -1,3 +1,7 @@
+var BT1 = "`";
+var CODE_BLOCK_BEGIN = "```";
+var CODE_BLOCK_END = "```";
+
 window.PASTIES = [
 {
     id: "59fef903-aec5-4162-8623-4d5d6948a310",
@@ -223,7 +227,57 @@ window.PASTIES = [
     Attempt to fix the issues and only then provide the answer to my request.
     Say "Ack" to acknowledge or ask me any questions that may improve your response.
     And then wait for my next request with the task for you.
-`}
+`},
+{
+    id: "9fd10cc1-24c4-4600-beac-fe0ec475a1c6",
+    title: "Pasty 9",
+    content: String.raw`
+    When I say a command !implement: followed by function signature, I want you to write the implementation for the C++ function.
+    Do not put any extra boilerplate code (like class definitions), just give me the implementation close to the example below.
+    Example, my request:
+    ${CODE_BLOCK_BEGIN}
+    !implement:
+    virtual inline aww::Result launch_file_in_browser(const std::string &url) = 0;
+    ${CODE_BLOCK_END}
+
+    Your response:
+    file ${BT1}io_dependencies_interface${BT1}:
+    ${CODE_BLOCK_BEGIN}cpp
+        /**
+         * Launch a file in the default browser.
+         * @param url The url to launch.
+         * @return Aww::Result indicating the success or failure of the operation.
+         */
+        virtual inline aww::Result launch_file_in_browser(const std::string &url) = 0;
+    ${CODE_BLOCK_END}
+
+    file ${BT1}io_dependencies${BT1}:
+    ${CODE_BLOCK_BEGIN}cpp
+        inline aww::Result launch_file_in_browser(const std::string &url) override
+        {
+          // TODO: implement me
+        }
+    ${CODE_BLOCK_END}
+
+    file ${BT1}io_dependencies_stub${BT1}:
+    ${CODE_BLOCK_BEGIN}cpp
+        // always define a default stub function (do not put this comment in the resulting code)
+        std::function<aww::Result(const std::string&)>
+            launch_file_in_browser_stub = [this]([[maybe_unused]]const std::string &url) -> aww::Result
+        {
+            return aww::Result::ok();
+        };
+        // always define a counter (do not put this comment in the resulting code)
+        int launch_file_in_browser_called = 0;
+
+        // always call the stub function and increment the call counter (do not put this comment in the resulting code)
+        aww::Result launch_file_in_browser(const std::string &url) override
+        {
+            launch_file_in_browser_called += 1;
+            return launch_file_in_browser_stub(url);
+        }
+    ${CODE_BLOCK_END}
+`},
 
 
 ]
