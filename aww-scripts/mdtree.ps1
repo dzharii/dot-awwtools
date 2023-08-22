@@ -52,6 +52,7 @@ $extensions = @(
     "*.ps1"
     "*.h"
     "*.hpp"
+    "*.cs"
     "*.c"
     "*.cpp"
     "*.cxx"
