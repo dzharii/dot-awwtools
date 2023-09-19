@@ -8,7 +8,8 @@ $ThisScriptFolderPath = Split-Path -Parent $MyInvocation.MyCommand.Definition
 
 $COMMAND_HELP = "help"
 $COMMAND_SHOW_GIT_CHANGES = "show-git-changes"
-
+$COMMAND_DIFF_FROM_MASTER = "diff-from-master"
+$COMMAND_DIFF_FROM_MAIN = "diff-from-main"
 
 $HELP_MESSAGE = @"
 Usage:
@@ -21,6 +22,13 @@ Commands:
 
     $($COMMAND_SHOW_GIT_CHANGES):
       Shows full paths of changed files between the current HEAD and origin
+
+    $($COMMAND_DIFF_FROM_MASTER):
+      Shows differences between the current branch and master
+
+    $($COMMAND_DIFF_FROM_MAIN):
+      Shows differences between the current branch and master
+
 "@
 
 switch ($Command.ToLower()) {
@@ -39,6 +47,16 @@ switch ($Command.ToLower()) {
         foreach ($file in $changedFiles) {
             Write-Output "${repoRoot}\${file}"
         }
+    }
+
+    $COMMAND_DIFF_FROM_MASTER {
+        # Display differences between the current branch and master
+        git diff master..
+    }
+
+    $COMMAND_DIFF_FROM_MAIN {
+        # Display differences between the current branch and master
+        git diff main..
     }
 
     Default {
