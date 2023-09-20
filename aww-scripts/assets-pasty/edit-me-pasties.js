@@ -360,5 +360,19 @@ window.PASTIES = [
     And then wait for my next request with the task for you.
 `},
 
+{
+    id: "d8e971a6-43ca-4894-adbf-d83b961cda1b",
+    title: "Pasty 11",
+    content: String.raw`
+    From now, at the end of each individual prompt, I want you to put a markdown link with text "Open in ImageCreate"
+    and url should be:
+    ${CODE_BLOCK_BEGIN}
+    https://www.bing.com/images/create?rt=4&FORM=GENCRE&q=
+    ${CODE_BLOCK_END}
+    where ${BT1}&q=${BT1} contains url encoded content of the prompt
+
+    Please, rewrite your previous response with this new requirements. Apply this requirements for every following propmpt.
+`}
+
 
 ]
