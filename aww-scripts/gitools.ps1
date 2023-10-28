@@ -10,6 +10,7 @@ $COMMAND_HELP = "help"
 $COMMAND_SHOW_GIT_CHANGES = "show-git-changes"
 $COMMAND_DIFF_FROM_MASTER = "diff-from-master"
 $COMMAND_DIFF_FROM_MAIN = "diff-from-main"
+$COMMAND_REMOVE_UNTRACKED = "remove-untracked"
 
 $HELP_MESSAGE = @"
 Usage:
@@ -28,6 +29,9 @@ Commands:
 
     $($COMMAND_DIFF_FROM_MAIN):
       Shows differences between the current branch and master
+
+    $($COMMAND_REMOVE_UNTRACKED):
+      Removes all untracked files and directories from the repository.
 
 "@
 
@@ -58,6 +62,16 @@ switch ($Command.ToLower()) {
         # Display differences between the current branch and master
         git diff main..
     }
+
+    $COMMAND_REMOVE_UNTRACKED {
+        Write-Host "Removing all untracked files and directories..." -ForegroundColor Yellow
+
+        # Removing untracked files and directories
+        git clean -fd
+
+        Write-Host "All untracked files and directories removed." -ForegroundColor Green
+    }
+
 
     Default {
         Write-Host $("=" * 80) -ForegroundColor Red
