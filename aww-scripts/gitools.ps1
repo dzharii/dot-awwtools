@@ -12,9 +12,12 @@ $COMMAND_DIFF_FROM_MASTER = "diff-from-master"
 $COMMAND_DIFF_FROM_MAIN = "diff-from-main"
 $COMMAND_REMOVE_UNTRACKED = "remove-untracked"
 
+# inspired by yt/uFrPgUjv_Y8  ; Enrico Campidoglio
+$COMMAND_PRETTY_LOG = "pretty-log"
+
 $HELP_MESSAGE = @"
 Usage:
-   gitools.ps1 <command> 
+   gitools.ps1 <command>
    gitools.cmd <command>
 
 Commands:
@@ -32,6 +35,12 @@ Commands:
 
     $($COMMAND_REMOVE_UNTRACKED):
       Removes all untracked files and directories from the repository.
+
+    $($COMMAND_PRETTY_LOG):
+      Displays a pretty log of commits with decorations and relative dates.
+      Example output, (but will be colorful!):
+
+
 
 "@
 
@@ -70,6 +79,18 @@ switch ($Command.ToLower()) {
         git clean -fd
 
         Write-Host "All untracked files and directories removed." -ForegroundColor Green
+    }
+
+    $COMMAND_PRETTY_LOG {
+        Write-Host "Displaying a pretty log of commits..." -ForegroundColor Cyan
+        # Execute the git pretty log command
+        # %C(color): colorize the output
+        # %h: abbreviated commit hash
+        # %d: ref names, like the --decorate option of git-log
+        # %s: subject, the commit message's title/summary
+        # %ar: author date, relative to the current time
+        # %Creset: reset the color
+        git log --pretty='%C(red)%h%Creset %C(yellow)%d%Creset %s %C(cyan)(%ar)%Creset'
     }
 
 
