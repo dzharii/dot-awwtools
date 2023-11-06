@@ -48,6 +48,7 @@ Commands:
 
     $($COMMAND_WHAT_CHANGES_ARE_IN_MASTER_NOT_MY_BRANCH):
       Shows commits that are in the main branch (master/main) but not in your current branch.
+
 "@
 
 function Get-MasterOrMainBranchName {
