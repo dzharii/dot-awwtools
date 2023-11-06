@@ -14,6 +14,9 @@ $COMMAND_REMOVE_UNTRACKED = "remove-untracked"
 
 # inspired by yt/uFrPgUjv_Y8  ; Enrico Campidoglio
 $COMMAND_PRETTY_LOG = "pretty-log"
+$COMMAND_WHAT_CHANGES_ARE_NEW = "what-changes-are-new-in-my-branch"
+$COMMAND_WHAT_CHANGES_ARE_IN_MASTER_NOT_MY_BRANCH = "what-changes-are-in-master-but-not-in-my-branch"
+
 
 $HELP_MESSAGE = @"
 Usage:
@@ -40,9 +43,26 @@ Commands:
       Displays a pretty log of commits with decorations and relative dates.
       Example output, (but will be colorful!):
 
+    $($COMMAND_WHAT_CHANGES_ARE_NEW):
+      Shows commits that are new in your current branch which are not in the main branch (master/main).
 
-
+    $($COMMAND_WHAT_CHANGES_ARE_IN_MASTER_NOT_MY_BRANCH):
+      Shows commits that are in the main branch (master/main) but not in your current branch.
 "@
+
+function Get-MasterOrMainBranchName {
+  $masterExists = git show-ref --verify --quiet refs/heads/master
+  if ($LASTEXITCODE -eq 0) {
+      return "master"
+  }
+
+  $mainExists = git show-ref --verify --quiet refs/heads/main
+  if ($LASTEXITCODE -eq 0) {
+      return "main"
+  }
+
+  return $null
+}
 
 switch ($Command.ToLower()) {
     $COMMAND_HELP {
@@ -92,6 +112,27 @@ switch ($Command.ToLower()) {
         # %Creset: reset the color
         git log --pretty='%C(red)%h%Creset %C(yellow)%d%Creset %s %C(cyan)(%ar)%Creset'
     }
+
+    $COMMAND_WHAT_CHANGES_ARE_NEW {
+      $mainBranch = Get-MasterOrMainBranchName
+      if ($mainBranch -eq $null) {
+          throw "Unable to determine the main branch name."
+      }
+
+      # Get the list of commits that are new in my branch compared to the main branch
+      git log $mainBranch..HEAD
+    }
+
+    $COMMAND_WHAT_CHANGES_ARE_IN_MASTER_NOT_MY_BRANCH {
+        $mainBranch = Get-MasterOrMainBranchName
+        if ($mainBranch -eq $null) {
+            throw "Unable to determine the main branch name."
+        }
+
+        # Get the list of commits that are in the main branch but not in my branch
+        git log HEAD..$mainBranch
+    }
+
 
 
     Default {
