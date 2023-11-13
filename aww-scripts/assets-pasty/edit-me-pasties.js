@@ -91,6 +91,8 @@ window.PASTIES = [
     - for loops are preferred over pipelines.
     - string interpolation must be done as follows: ${BT1}"$($variable)"${BT1};
     - log script execution / decisions with Write-Host. Should not be too verbose, but make it clear what the script was doing.
+
+    REPLY ONLY "ACK" to acknowledge this request.
 `},
 {
     id: "5ae58d2d-d741-4cbb-afc2-267087c1ad22",
