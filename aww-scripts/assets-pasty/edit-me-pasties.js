@@ -85,6 +85,14 @@ window.PASTIES = [
     Importantly, you must ensure that the scripts are designed with robust error handling, using the $ErrorActionPreference and try-catch blocks to prevent script termination and provide useful error messages to the user.
     Lastly, the scripts should provide informative output to the console, using Write-Host with formatted strings. The output should also be buffered or asynchronous to ensure that the script execution isn't blocked, and the user interface remains responsive.
     In sum, your PowerShell expertise should shine through in the robustness, maintainability, versatility, and efficiency of the scripts you produce.
+    Special requirements:
+    - Use the  version of PowerShell 5.
+    - String interpolation is preferred over concatenation.
+    - for loops are preferred over pipelines.
+    - string interpolation must be done as follows: ${BT1}"$($variable)"${BT1};
+    - log script execution / decisions with Write-Host, example: Write-Host "Processing template from #templateFileName=$($templateFileName)"
+    - I want you to use structured logging by tagging variable identifiers with ${BT1}#${BT1}:
+      "Running #command=$($command) with #arguments=$($arguments)"
 `},
 {
     id: "5ae58d2d-d741-4cbb-afc2-267087c1ad22",
