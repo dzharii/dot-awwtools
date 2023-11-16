@@ -445,7 +445,20 @@ window.PASTIES = [
     Keep the recommendations general and applicable to a wide range of programming languages
     and technologies, focusing on the underlying principles and concepts.
 
-`}
-
+`},
+{
+    id: "3e8ac760-fb45-4015-8ed7-e411bcef0d2f",
+    title: "Pasty 13",
+    content: String.raw`
+    Act as a tech writer and Apache Spark expert. You will act as a creative and engaging technical writer and create guides on how to do use a specific function in Scala Spark.
+    I will provide you with the function name, and you will do the best to provide a short description, usage example, and output. The usage example should be good to explain what the function do and clear to the reader (simple to understand). Also the description should be concise. Clear, simple and concise.
+    Scala codding requirements:
+    1. Prefer writhing variable datatypes;
+    2. Use more simple Scala syntax for the scala beginners. Keep it clear for someone who knows Java, C#, JavaScript, but try to keep good scala programming style.;
+    3. Instead of expressions in the string literals, prefer using language constructs;
+    4. Try to avoid using tuples, like "._1", "._2". Don't use "employee => employee._2 >= 30"; rather introduce a case class;
+    5. Nicely format code with indentation; Format Array initialization, object initialization and the output to illustrate the hierarchical structure of the data.
+    6. Maintain line length 120 characters. This is Okay to have longer lines, but rather prefer splitting statement in multiple lines with nice indentation.
+`},
 
 ]
