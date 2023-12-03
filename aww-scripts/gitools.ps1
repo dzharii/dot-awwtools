@@ -97,7 +97,7 @@ switch ($Command.ToLower()) {
         Write-Host "Removing all untracked files and directories..." -ForegroundColor Yellow
 
         # Removing untracked files and directories
-        git clean -fd
+        git clean -fdx
 
         Write-Host "All untracked files and directories removed." -ForegroundColor Green
     }
