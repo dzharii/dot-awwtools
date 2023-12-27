@@ -1,0 +1,79 @@
+/* styles.css */
+
+body {
+    background-color: #2c3e50;
+    color: #fff;
+    font-family: Arial, sans-serif;
+  }
+
+  #pastyContainer {
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+
+  }
+
+  .pasty {
+    background-color: #34495e;
+    padding: 20px;
+    border-radius: 5px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+
+  .pasty div.pasty-content {
+    cursor: pointer;
+    margin-bottom: 10px;
+    padding: 20pt 20pt 20pt 20pt;
+    border-radius: 5px;
+    outline: 1px solid #fff;
+    white-space: pre-wrap;
+  }
+
+  .pasty div:hover {
+    background-color: #2c3e50;
+  }
+
+  button {
+    background-color: #3498db;
+    color: #fff;
+    border: none;
+    padding: 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+
+  button:hover {
+    background-color: #2980b9;
+  }
+
+  button:active {
+    background-color: #1f647a;
+  }
+
+  button:focus {
+    outline: none;
+  }
+
+
+  /* BB Styles */
+
+  .bb-bold {
+    font-weight: bold;
+    color: #FFA500;
+  }
+
+  .bb-italic {
+    font-style: italic;
+    color: #FFA500;
+  }
+
+  .bb-underline {
+    text-decoration: underline;
+    color: #FFA500;
+  }
+
+  .bb-strikeout {
+    text-decoration: line-through;
+    color: #FFA500;
+  }
