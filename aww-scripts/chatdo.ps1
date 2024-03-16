@@ -3,10 +3,18 @@ $ErrorActionPreference = "Stop"
 # $host.ui.RawUI.WindowTitle = "My Title"
 $ThisScriptFolderPath = Split-Path -Parent $MyInvocation.MyCommand.Definition
 
-Add-Type -AssemblyName System.Windows.Forms
+if ($IsWindows) {
+    Add-Type -AssemblyName System.Windows.Forms
+    # Read data from the clipboard on Windows
+    $clipboardText = [Windows.Forms.Clipboard]::GetText()
+} elseif ($IsLinux) {
+    # Read data from the clipboard on Linux using xclip
+    $clipboardText = & xclip -o -selection c
+} else {
+    throw "Unsupported operating system for this script."
+}
 
-# Read data from the clipboard
-$clipboardText = [Windows.Forms.Clipboard]::GetText()
+
 
 # Split the clipboard content into lines
 $lines = $clipboardText -split "`n"
