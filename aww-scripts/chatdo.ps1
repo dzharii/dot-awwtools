@@ -3,7 +3,7 @@ $ErrorActionPreference = "Stop"
 # $host.ui.RawUI.WindowTitle = "My Title"
 $ThisScriptFolderPath = Split-Path -Parent $MyInvocation.MyCommand.Definition
 
-if ($IsWindows) {
+if (-not($IsLinux)) {
     Add-Type -AssemblyName System.Windows.Forms
     # Read data from the clipboard on Windows
     $clipboardText = [Windows.Forms.Clipboard]::GetText()
