@@ -1,6 +1,8 @@
 param(
     [Parameter(Mandatory=$true)]
-    [string]$Command
+    [string]$Command,
+    [Parameter(Mandatory=$false)]
+    [string]$Name 
 )
 
 $ErrorActionPreference = "Stop"
@@ -16,6 +18,7 @@ $COMMAND_REMOVE_UNTRACKED = "remove-untracked"
 $COMMAND_PRETTY_LOG = "pretty-log"
 $COMMAND_WHAT_CHANGES_ARE_NEW = "what-changes-are-new-in-my-branch"
 $COMMAND_WHAT_CHANGES_ARE_IN_MASTER_NOT_MY_BRANCH = "what-changes-are-in-master-but-not-in-my-branch"
+$COMMAND_MOVE_FILES_TO_OTHER_BRANCH = "move-files-to-other-branch"
 
 
 $HELP_MESSAGE = @"
@@ -49,6 +52,9 @@ Commands:
     $($COMMAND_WHAT_CHANGES_ARE_IN_MASTER_NOT_MY_BRANCH):
       Shows commits that are in the main branch (master/main) but not in your current branch.
 
+    $($COMMAND_MOVE_FILES_TO_OTHER_BRANCH) -Name <target_branch_name>:
+      Moves all staged changes to another branch. The target branch is specified with the -Name parameter.
+      If the branch doesn't exist, it will be created.
 "@
 
 function Get-MasterOrMainBranchName {
@@ -64,6 +70,16 @@ function Get-MasterOrMainBranchName {
 
   return $null
 }
+
+function CheckBranchExists {
+    param(
+        [string]$branchName
+    )
+
+    git show-ref --verify --quiet refs/heads/$branchName
+    return $LASTEXITCODE -eq 0
+}
+
 
 switch ($Command.ToLower()) {
     $COMMAND_HELP {
@@ -133,8 +149,42 @@ switch ($Command.ToLower()) {
         # Get the list of commits that are in the main branch but not in my branch
         git log HEAD..$mainBranch
     }
+    $COMMAND_MOVE_FILES_TO_OTHER_BRANCH {
+        if (-not $PSBoundParameters.ContainsKey('Name')) {
+            Write-Host "Error: The -Name parameter is required for the 'move-files-to-other-branch' command." -ForegroundColor Red
+            exit 1
+        }
 
+        Write-Host "Moving staged files to branch: $($Name)" -ForegroundColor Yellow
 
+        try {
+            # Stash staged changes
+            Write-Host "Stashing staged changes..." -ForegroundColor Cyan
+            git stash push -k -m "Temporary stash of staged changes"
+
+            # Check if branch exists, create if not
+            if (-not (CheckBranchExists -branchName $Name)) {
+                Write-Host "Branch $($Name) does not exist. Creating it..." -ForegroundColor Cyan
+                git checkout -b $Name
+            } else {
+                Write-Host "Branch $($Name) exists. Checking out..." -ForegroundColor Cyan
+                git checkout $Name
+            }
+
+            # Apply the stash
+            Write-Host "Applying stashed changes..." -ForegroundColor Cyan
+            git stash apply --index
+
+            # Drop the stash
+            Write-Host "Dropping the stash..." -ForegroundColor Cyan
+            git stash drop
+
+            Write-Host "Staged changes moved to branch: $($Name)" -ForegroundColor Green
+        } catch {
+            Write-Host "An error occurred: $_" -ForegroundColor Red
+            exit 1
+        }
+    }
 
     Default {
         Write-Host $("=" * 80) -ForegroundColor Red
