@@ -1,3 +1,6 @@
+# https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/invoke-restmethod?view=powershell-7.4
+# TimeoutSec??? !!!
+
 enum RestDslLogLevels {
     Verbose = 3
     Info    = 2
@@ -79,13 +82,13 @@ function Log-RestDslEnd {
     }
 
     if ($script:RestDslLogLevel -ge 2)
-    {        
+    {
         Write-Host "FINISHED REQUEST Id=[$($Id)]" -BackgroundColor Black -ForegroundColor Gray
         Write-Host "RESPONSE" -BackgroundColor Black -ForegroundColor Gray
     }
 
     if ($script:RestDslLogLevel -ge 3)
-    {        
+    {
         try {
             $formattedJson = $Body | ConvertTo-Json
             Write-Host $formattedJson @colorParamsBody
@@ -111,7 +114,7 @@ function Log-HttpError {
     }
 
     if ($script:RestDslLogLevel -ge 1)
-    {        
+    {
         Write-Host "FAILED REQUEST Id=[$($Id)]" @errorColorParams
         if ($HttpError -and $HttpError.Exception) {
             Write-Host $HttpError.Exception @errorColorParams
@@ -138,7 +141,7 @@ function Log-HttpError {
 }
 
 # Sends a GET request to the specified URI with a timeout
-function GET {
+function Invoke-AwwHttpGet {
     param(
         [Parameter(Mandatory = $true)]
         [string] $Uri,
@@ -173,7 +176,7 @@ function GET {
 }
 
 # Sends a POST request to the specified URI with a timeout
-function POST {
+function Invoke-AwwHttpPost {
     param(
         [Parameter(Mandatory = $true)]
         [string] $Uri,
@@ -211,7 +214,7 @@ function POST {
 }
 
 # Sends a PATCH request to the specified URI with a timeout
-function PATCH {
+function Invoke-AwwHttpPatch {
     param(
         [Parameter(Mandatory = $true)]
         [string] $Uri,
@@ -249,7 +252,7 @@ function PATCH {
 }
 
 # Sends a DELETE request to the specified URI with a timeout
-function DELETE {
+function Invoke-AwwHttpDelete {
     param(
         [Parameter(Mandatory = $true)]
         [string] $Uri,
@@ -283,13 +286,5 @@ function DELETE {
     return $response;
 }
 
-# Exported HttpClient object with function pointers
-$HttpClient = [PSCustomObject]@{
-    GET    = ${function:GET}
-    POST   = ${function:POST}
-    PATCH  = ${function:PATCH}
-    DELETE = ${function:DELETE}
-}
-
-# Export the HttpClient object
-Export-ModuleMember -Variable AwwHttp
+# Export the Invoke-AwwHttp* functions
+Export-ModuleMember -Function Invoke-AwwHttpGet, Invoke-AwwHttpPost, Invoke-AwwHttpPatch, Invoke-AwwHttpDelete
