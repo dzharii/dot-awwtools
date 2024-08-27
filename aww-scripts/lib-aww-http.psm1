@@ -8,7 +8,7 @@ enum RestDslLogLevels {
 }
 
 $script:RestDslLogLevel = [RestDslLogLevels]::Verbose
-$script:DefaultTimeout = 60000 # Default timeout set to 1 minute (in milliseconds)
+$script:DefaultTimeoutMs = 60000 # Default timeout set to 1 minute (in milliseconds)
 
 # Generates a unique request ID
 function Get-RestDslRequestId {
@@ -148,16 +148,18 @@ function Invoke-AwwHttpGet {
         [Parameter(Mandatory = $false)]
         [hashtable] $Headers = @{},
         [Parameter(Mandatory = $false)]
-        [int] $Timeout = $script:DefaultTimeout
+        [int] $TimeoutMs = $script:DefaultTimeoutMs
     )
+
+    $TimeoutSec = $TimeoutMs / 1000
 
     $modifiedHeaders = $Headers.Clone()
 
     $params = @{
-        Uri = "$Uri"
+        Uri = $Uri
         Method = "GET"
         Headers = $modifiedHeaders
-        TimeoutMilliseconds = $Timeout
+        TimeoutSec = $TimeoutSec
     }
 
     $response = "";
@@ -185,17 +187,19 @@ function Invoke-AwwHttpPost {
         [Parameter(Mandatory = $false)]
         [string] $Body = $null,
         [Parameter(Mandatory = $false)]
-        [int] $Timeout = $script:DefaultTimeout
+        [int] $TimeoutMs = $script:DefaultTimeoutMs
     )
+
+    $TimeoutSec = $TimeoutMs / 1000
 
     $modifiedHeaders = $Headers.Clone()
 
     $params = @{
-        Uri = "$Uri"
+        Uri = $Uri
         Method = "POST"
         Headers = $modifiedHeaders
         Body = $Body
-        TimeoutMilliseconds = $Timeout
+        TimeoutSec = $TimeoutSec
     }
 
     $response = "";
@@ -223,17 +227,19 @@ function Invoke-AwwHttpPatch {
         [Parameter(Mandatory = $false)]
         [string] $Body = $null,
         [Parameter(Mandatory = $false)]
-        [int] $Timeout = $script:DefaultTimeout
+        [int] $TimeoutMs = $script:DefaultTimeoutMs
     )
+
+    $TimeoutSec = $TimeoutMs / 1000
 
     $modifiedHeaders = $Headers.Clone()
 
     $params = @{
-        Uri = "$Uri"
+        Uri = $Uri
         Method = "PATCH"
         Headers = $modifiedHeaders
         Body = $Body
-        TimeoutMilliseconds = $Timeout
+        TimeoutSec = $TimeoutSec
     }
 
     $response = "";
@@ -259,16 +265,18 @@ function Invoke-AwwHttpDelete {
         [Parameter(Mandatory = $false)]
         [hashtable] $Headers =  @{},
         [Parameter(Mandatory = $false)]
-        [int] $Timeout = $script:DefaultTimeout
+        [int] $TimeoutMs = $script:DefaultTimeoutMs
     )
+
+    $TimeoutSec = $TimeoutMs / 1000
 
     $modifiedHeaders = $Headers.Clone()
 
     $params = @{
-        Uri = "$Uri"
+        Uri = $Uri
         Method = "DELETE"
         Headers = $modifiedHeaders
-        TimeoutMilliseconds = $Timeout
+        TimeoutSec = $TimeoutSec
     }
 
     $response = "";
