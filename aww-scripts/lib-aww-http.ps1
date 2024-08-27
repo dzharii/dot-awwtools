@@ -293,6 +293,3 @@ function Invoke-AwwHttpDelete {
     }
     return $response;
 }
-
-# Export the Invoke-AwwHttp* functions
-Export-ModuleMember -Function Invoke-AwwHttpGet, Invoke-AwwHttpPost, Invoke-AwwHttpPatch, Invoke-AwwHttpDelete

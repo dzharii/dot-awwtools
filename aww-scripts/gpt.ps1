@@ -27,7 +27,7 @@ Commands:
 "@
 
 # Load the HTTP module
-Import-Module $(Join-Path $ThisScriptFolderPath "lib-aww-http.psm1")
+. $(Join-Path $ThisScriptFolderPath "lib-aww-http.ps1")
 
 # Retrieve the OpenAI API key from the environment variable
 $apiKey = $env:OPEN_AI_KEY
