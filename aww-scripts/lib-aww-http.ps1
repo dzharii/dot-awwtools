@@ -1,6 +1,3 @@
-# https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/invoke-restmethod?view=powershell-7.4
-# TimeoutSec??? !!!
-
 enum RestDslLogLevels {
     Verbose = 3
     Info    = 2
@@ -8,7 +5,6 @@ enum RestDslLogLevels {
 }
 
 $script:RestDslLogLevel = [RestDslLogLevels]::Verbose
-$script:DefaultTimeoutMs = 60000 # Default timeout set to 1 minute (in milliseconds)
 
 # Generates a unique request ID
 function Get-RestDslRequestId {
@@ -140,18 +136,13 @@ function Log-HttpError {
     }
 }
 
-# Sends a GET request to the specified URI with a timeout
 function Invoke-AwwHttpGet {
     param(
         [Parameter(Mandatory = $true)]
         [string] $Uri,
         [Parameter(Mandatory = $false)]
-        [hashtable] $Headers = @{},
-        [Parameter(Mandatory = $false)]
-        [int] $TimeoutMs = $script:DefaultTimeoutMs
+        [hashtable] $Headers = @{}
     )
-
-    $TimeoutSec = $TimeoutMs / 1000
 
     $modifiedHeaders = $Headers.Clone()
 
@@ -159,7 +150,6 @@ function Invoke-AwwHttpGet {
         Uri = $Uri
         Method = "GET"
         Headers = $modifiedHeaders
-        TimeoutSec = $TimeoutSec
     }
 
     $response = "";
@@ -177,7 +167,6 @@ function Invoke-AwwHttpGet {
     return $response;
 }
 
-# Sends a POST request to the specified URI with a timeout
 function Invoke-AwwHttpPost {
     param(
         [Parameter(Mandatory = $true)]
@@ -185,12 +174,8 @@ function Invoke-AwwHttpPost {
         [Parameter(Mandatory = $false)]
         [hashtable] $Headers =  @{},
         [Parameter(Mandatory = $false)]
-        [string] $Body = $null,
-        [Parameter(Mandatory = $false)]
-        [int] $TimeoutMs = $script:DefaultTimeoutMs
+        [string] $Body = $null
     )
-
-    $TimeoutSec = $TimeoutMs / 1000
 
     $modifiedHeaders = $Headers.Clone()
 
@@ -199,7 +184,6 @@ function Invoke-AwwHttpPost {
         Method = "POST"
         Headers = $modifiedHeaders
         Body = $Body
-        TimeoutSec = $TimeoutSec
     }
 
     $response = "";
@@ -217,7 +201,6 @@ function Invoke-AwwHttpPost {
     return $response;
 }
 
-# Sends a PATCH request to the specified URI with a timeout
 function Invoke-AwwHttpPatch {
     param(
         [Parameter(Mandatory = $true)]
@@ -225,12 +208,8 @@ function Invoke-AwwHttpPatch {
         [Parameter(Mandatory = $false)]
         [hashtable] $Headers =  @{},
         [Parameter(Mandatory = $false)]
-        [string] $Body = $null,
-        [Parameter(Mandatory = $false)]
-        [int] $TimeoutMs = $script:DefaultTimeoutMs
+        [string] $Body = $null
     )
-
-    $TimeoutSec = $TimeoutMs / 1000
 
     $modifiedHeaders = $Headers.Clone()
 
@@ -239,7 +218,6 @@ function Invoke-AwwHttpPatch {
         Method = "PATCH"
         Headers = $modifiedHeaders
         Body = $Body
-        TimeoutSec = $TimeoutSec
     }
 
     $response = "";
@@ -257,26 +235,19 @@ function Invoke-AwwHttpPatch {
     return $response;
 }
 
-# Sends a DELETE request to the specified URI with a timeout
 function Invoke-AwwHttpDelete {
     param(
         [Parameter(Mandatory = $true)]
         [string] $Uri,
         [Parameter(Mandatory = $false)]
-        [hashtable] $Headers =  @{},
-        [Parameter(Mandatory = $false)]
-        [int] $TimeoutMs = $script:DefaultTimeoutMs
+        [hashtable] $Headers =  @{}
     )
-
-    $TimeoutSec = $TimeoutMs / 1000
-
     $modifiedHeaders = $Headers.Clone()
 
     $params = @{
         Uri = $Uri
         Method = "DELETE"
         Headers = $modifiedHeaders
-        TimeoutSec = $TimeoutSec
     }
 
     $response = "";

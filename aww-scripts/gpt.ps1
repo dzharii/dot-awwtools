@@ -1,13 +1,18 @@
-param(
-    [Parameter(Mandatory=$true)]
-    [string] $Command,
-
-    [Parameter(Mandatory=$false)]
-    [string] $Text
-)
-
 $ErrorActionPreference = "Stop"
 $ThisScriptFolderPath = Split-Path -Parent $MyInvocation.MyCommand.Definition
+
+$Command = $args[0]
+$Rest = $args | Select-Object -Skip 1
+
+if (-not($Command)) {
+  $Command = ""
+}
+
+if (-not($Rest)) {
+    $Rest = @()
+}
+
+
 
 $COMMAND_HELP = "help"
 $COMMAND_TRANSLATE = "translate"
@@ -38,7 +43,7 @@ if (-not $apiKey) {
     return
 }
 
-$apiEndpoint = "https://api.openai.com/v1/completions"
+$apiEndpoint = "https://api.openai.com/v1/chat/completions"
 
 # Handles different commands
 switch ($Command.ToLower()) {
@@ -48,16 +53,28 @@ switch ($Command.ToLower()) {
     }
 
     $COMMAND_TRANSLATE {
+        
+        $Text = "$Rest"
         if (-not $Text) {
             Write-Host "Error: Text for translation is required." -ForegroundColor Red
             exit 1
         }
 
         # Define the request body and headers
-        $prompt = "Translate the following English text: $Text"
+        $messages = @(
+            @{
+                role = "system"
+                content = "You are a helpful assistant."
+            },
+            @{
+                role = "user"
+                content = "Translate the following English text: $Text"
+            }
+        )
+
         $requestBody = @{
             model = "gpt-4o-mini"
-            prompt = $prompt
+            messages = $messages
             max_tokens = 100
         } | ConvertTo-Json
 
@@ -71,7 +88,7 @@ switch ($Command.ToLower()) {
 
         # Output the response
         if ($response.choices) {
-            Write-Host "Translation: $($response.choices[0].text)"
+            Write-Host "Translation: $($response.choices[0].message.content)"
         } else {
             Write-Host "Error: No response received from OpenAI API." -ForegroundColor Red
         }
