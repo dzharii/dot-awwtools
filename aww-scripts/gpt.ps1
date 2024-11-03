@@ -17,6 +17,7 @@ if (-not($Rest)) {
 $COMMAND_HELP = "help"
 $COMMAND_TRANSLATE = "translate-fr"
 $COMMAND_NO = "no"
+$COMMAND_FIX_GRAMMAR = "fix-grammar"
 
 
 $HELP_MESSAGE = @"
@@ -33,11 +34,21 @@ Commands:
 
     $($COMMAND_NO) "text to sya no to" / or clipboard:
       Translates the provided text to the target language using GPT.
+
+    $($COMMAND_FIX_GRAMMAR) "Text to fix grammar" / or clipboard:
+      Fixes grammar mistakes, rearranges words, or edits for clarity while maintaining original style.
 "@
+
+
+# Load the buffered logger module
+. $(Join-Path $ThisScriptFolderPath "lib-buffered-logger.ps1")
 
 # Load the HTTP module
 . $(Join-Path $ThisScriptFolderPath "lib-aww-http.ps1")
 
+$logger = New-Object BufferedLogger
+
+try{
 # Retrieve the OpenAI API key from the environment variable
 $apiKey = $env:OPEN_AI_KEY
 
@@ -67,7 +78,7 @@ switch ($Command.ToLower()) {
     }
 
     $COMMAND_NO {
-        
+
         $Text = "$Rest"
 
         if (-not($Text)) {
@@ -84,9 +95,9 @@ switch ($Command.ToLower()) {
             @{
                 role = "system"
                 content = @"
-Given any user input, logically disagree with it by providing a counter-argument in an unformatted paragraph. 
-Ensure the disagreement is respectful and based on logic, facts, or widely accepted principles. 
-Respond in the same language as the user's input. 
+Given any user input, logically disagree with it by providing a counter-argument in an unformatted paragraph.
+Ensure the disagreement is respectful and based on logic, facts, or widely accepted principles.
+Respond in the same language as the user's input.
 Provide examples to support your disagreement when relevant, and address any potential counterpoints the user might raise.
 "@
             },
@@ -122,7 +133,7 @@ Provide examples to support your disagreement when relevant, and address any pot
     }
 
     $COMMAND_TRANSLATE {
-        
+
         $Text = "$Rest"
 
         if (-not($Text)) {
@@ -171,6 +182,50 @@ Provide examples to support your disagreement when relevant, and address any pot
         }
     }
 
+    $COMMAND_FIX_GRAMMAR {
+        # New code for the "fix-grammar" command
+        $Text = "$Rest"
+        if (-not($Text)) {
+            $Text = Get-ClipboardConsent
+        }
+        if (-not $Text) {
+            Write-Host "Error: Text for grammar correction is required." -ForegroundColor Red
+            exit 1
+        }
+
+        $messages = @(
+            @{
+                role = "system"
+                content = "Fix grammar mistakes, rearrange words, or edit for clarity if needed, while maintaining the original style."
+            },
+            @{
+                role = "user"
+                content = "$Text"
+            }
+        )
+
+        $requestBody = @{
+            model = "gpt-4o-mini"
+            messages = $messages
+            max_tokens = 100
+        } | ConvertTo-Json
+
+        $headers = @{
+            "Authorization" = "Bearer $($apiKey)"
+            "Content-Type"  = "application/json"
+        }
+
+        $response = Invoke-AwwHttpPost -Uri $apiEndpoint -Headers $headers -Body $requestBody
+
+        if ($response.choices) {
+            $result = "$($response.choices[0].message.content)"
+            Write-Host "Grammar-corrected Text: $($result)"
+            $result | Set-Clipboard
+        } else {
+            Write-Host "Error: No response received from OpenAI API." -ForegroundColor Red
+        }
+    }
+
     Default {
         Write-Host $("=" * 80) -ForegroundColor Red
         Write-Host "Unknown command: $Command" -ForegroundColor Red
@@ -181,3 +236,7 @@ Provide examples to support your disagreement when relevant, and address any pot
 }
 
 Write-Host "Done: $(Get-Date -Format o)"
+} catch {
+    $logger.Flush()
+    Write-Host "Error: $_" -ForegroundColor Red
+}
