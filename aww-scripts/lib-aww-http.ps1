@@ -1,14 +1,41 @@
-enum RestDslLogLevels {
-    Verbose = 3
-    Info    = 2
-    Error   = 1
-}
-
-$script:RestDslLogLevel = [RestDslLogLevels]::Verbose
-
 # Generates a unique request ID
 function Get-RestDslRequestId {
     return [Guid]::NewGuid().ToString().Replace("-", "")
+}
+
+function Write-AwwLog {
+    param (
+        [string] $message,
+        [string] $ForegroundColor = "White",
+        [string] $BackgroundColor = "Black"
+    )
+    if ($script:AWWLOG) {
+        $script:AWWLOG.WriteHost($message)
+    } else {
+        Write-Host $message -ForegroundColor $ForegroundColor -BackgroundColor $BackgroundColor
+    }
+}
+
+function Write-AwwError {
+    param (
+        [string] $message
+    )
+    if ($script:AWWLOG) {
+        $script:AWWLOG.WriteError($message)
+    } else {
+        Write-Host $message -ForegroundColor Red
+    }
+}
+
+function Write-AwwWarning {
+    param (
+        [string] $message
+    )
+    if ($script:AWWLOG) {
+        $script:AWWLOG.WriteWarning($message)
+    } else {
+        Write-Host $message -ForegroundColor Yellow
+    }
 }
 
 # Logs the beginning of a REST API request
@@ -30,35 +57,25 @@ function Log-RestDslBegin {
         [string] $Body = ""
     )
 
-    if ($script:RestDslLogLevel -ge 2)
-    {
-        Write-Host ""
-        Write-Host "REQUEST Id=$($Id)" -BackgroundColor Black -ForegroundColor Gray
-        Write-Host "$($Method) $($Uri)" -BackgroundColor Black -ForegroundColor White
-    }
+    Write-AwwLog -message ""
+    Write-AwwLog -message "REQUEST Id=$($Id)" -ForegroundColor Gray
+    Write-AwwLog -message "$($Method) $($Uri)" -ForegroundColor White
 
     if ($Headers) {
         foreach ($key in $Headers.Keys) {
             $key = "$($key)".ToLower()
-
-            if ($script:RestDslLogLevel -ge 3)
-            {
-                if ($key -eq "authorization") {
-                    Write-Host "$($key): ..."
-                } else {
-                    Write-Host "$($key): $($Headers[$key])"
-                }
+            if ($key -eq "authorization") {
+                Write-AwwLog -message "$($key): ..."
+            } else {
+                Write-AwwLog -message "$($key): $($Headers[$key])"
             }
         }
     }
 
-    if ($script:RestDslLogLevel -ge 3)
-    {
-        if ($Body) {
-            Write-Host ""
-            Write-Host $Body
-            Write-Host ""
-        }
+    if ($Body) {
+        Write-AwwLog -message ""
+        Write-AwwLog -message $Body
+        Write-AwwLog -message ""
     }
 }
 
@@ -77,20 +94,14 @@ function Log-RestDslEnd {
         ForegroundColor = "White"
     }
 
-    if ($script:RestDslLogLevel -ge 2)
-    {
-        Write-Host "FINISHED REQUEST Id=[$($Id)]" -BackgroundColor Black -ForegroundColor Gray
-        Write-Host "RESPONSE" -BackgroundColor Black -ForegroundColor Gray
-    }
+    Write-AwwLog -message "FINISHED REQUEST Id=[$($Id)]" -ForegroundColor Gray
+    Write-AwwLog -message "RESPONSE" -ForegroundColor Gray
 
-    if ($script:RestDslLogLevel -ge 3)
-    {
-        try {
-            $formattedJson = $Body | ConvertTo-Json
-            Write-Host $formattedJson @colorParamsBody
-        } catch {
-            Write-Host $Body @colorParamsBody
-        }
+    try {
+        $formattedJson = $Body | ConvertTo-Json
+        Write-AwwLog -message $formattedJson -ForegroundColor $colorParamsBody.ForegroundColor -BackgroundColor $colorParamsBody.BackgroundColor
+    } catch {
+        Write-AwwLog -message $Body -ForegroundColor $colorParamsBody.ForegroundColor -BackgroundColor $colorParamsBody.BackgroundColor
     }
 }
 
@@ -109,30 +120,27 @@ function Log-HttpError {
         ForegroundColor = "Red"
     }
 
-    if ($script:RestDslLogLevel -ge 1)
-    {
-        Write-Host "FAILED REQUEST Id=[$($Id)]" @errorColorParams
-        if ($HttpError -and $HttpError.Exception) {
-            Write-Host $HttpError.Exception @errorColorParams
-            Write-Host ""
+    Write-AwwLog -message "FAILED REQUEST Id=[$($Id)]" -ForegroundColor $errorColorParams.ForegroundColor -BackgroundColor $errorColorParams.BackgroundColor
+    if ($HttpError -and $HttpError.Exception) {
+        Write-AwwLog -message $HttpError.Exception -ForegroundColor $errorColorParams.ForegroundColor -BackgroundColor $errorColorParams.BackgroundColor
+        Write-AwwLog -message ""
+        try {
+            $result = $HttpError.Exception.Response.GetResponseStream()
+            $reader = New-Object System.IO.StreamReader($result)
+            $reader.BaseStream.Position = 0
+            $reader.DiscardBufferedData()
+            $responseBody = $reader.ReadToEnd();
+            Write-AwwLog -message "ERROR RESPONSE BODY:" -ForegroundColor $errorColorParams.ForegroundColor -BackgroundColor $errorColorParams.BackgroundColor
             try {
-                $result = $HttpError.Exception.Response.GetResponseStream()
-                $reader = New-Object System.IO.StreamReader($result)
-                $reader.BaseStream.Position = 0
-                $reader.DiscardBufferedData()
-                $responseBody = $reader.ReadToEnd();
-                Write-Host "ERROR RESPONSE BODY:" @errorColorParams
-                try {
-                    $formattedJson = $responseBody | ConvertFrom-Json | ConvertTo-Json
-                    Write-Host $formattedJson @errorColorParams
-                } catch {
-                    Write-Host $responseBody @errorColorParams
-                }
+                $formattedJson = $responseBody | ConvertFrom-Json | ConvertTo-Json
+                Write-AwwLog -message $formattedJson -ForegroundColor $errorColorParams.ForegroundColor -BackgroundColor $errorColorParams.BackgroundColor
+            } catch {
+                Write-AwwLog -message $responseBody -ForegroundColor $errorColorParams.ForegroundColor -BackgroundColor $errorColorParams.BackgroundColor
             }
-            catch { }
-        } else {
-            Write-Host $HttpError @errorColorParams
         }
+        catch { }
+    } else {
+        Write-AwwLog -message $HttpError -ForegroundColor $errorColorParams.ForegroundColor -BackgroundColor $errorColorParams.BackgroundColor
     }
 }
 

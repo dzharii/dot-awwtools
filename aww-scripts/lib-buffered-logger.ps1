@@ -73,4 +73,6 @@ if (-not($definedBufferedLogger)) {
         }
     }
 '@
+
+$script:AWWLOG = New-Object BufferedLogger
 }
