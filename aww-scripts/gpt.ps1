@@ -54,7 +54,7 @@ $apiKey = $env:OPEN_AI_KEY
 
 # Check if the API key is not empty or null
 if (-not $apiKey) {
-    Write-Host "Error: API key not found in environment variable 'OPEN_AI_KEY'." -ForegroundColor Red
+    Write-Host "Error: API key not found in environment variable 'OPEN_AI_KEY'."
     return
 }
 
@@ -124,11 +124,11 @@ Provide examples to support your disagreement when relevant, and address any pot
         # Output the response
         if ($response.choices) {
             $result = "$($response.choices[0].message.content)"
-            Write-Host "Translation: $($result)"
+            $logger.WriteHost("Translation: $($result)")
             $result | Set-Clipboard
 
         } else {
-            Write-Host "Error: No response received from OpenAI API." -ForegroundColor Red
+            $logger.WriteError("Error: No response received from OpenAI API.")
         }
     }
 
@@ -141,7 +141,7 @@ Provide examples to support your disagreement when relevant, and address any pot
         }
 
         if (-not $Text) {
-            Write-Host "Error: Text for translation is required." -ForegroundColor Red
+            $logger.WriteError("Error: Text for translation is required.")
             exit 1
         }
 
@@ -174,11 +174,11 @@ Provide examples to support your disagreement when relevant, and address any pot
         # Output the response
         if ($response.choices) {
             $result = "$($response.choices[0].message.content)"
-            Write-Host "Translation: $($result)"
+            $logger.WriteHost("Translation: $($result)")
             $result | Set-Clipboard
 
         } else {
-            Write-Host "Error: No response received from OpenAI API." -ForegroundColor Red
+            $logger.WriteError("Error: No response received from OpenAI API.")
         }
     }
 
@@ -189,7 +189,7 @@ Provide examples to support your disagreement when relevant, and address any pot
             $Text = Get-ClipboardConsent
         }
         if (-not $Text) {
-            Write-Host "Error: Text for grammar correction is required." -ForegroundColor Red
+            $logger.WriteError("Error: Text for grammar correction is required.")
             exit 1
         }
 
@@ -222,20 +222,18 @@ Provide examples to support your disagreement when relevant, and address any pot
             Write-Host "Grammar-corrected Text: $($result)"
             $result | Set-Clipboard
         } else {
-            Write-Host "Error: No response received from OpenAI API." -ForegroundColor Red
+            $logger.WriteError("Error: No response received from OpenAI API.")
         }
     }
 
     Default {
-        Write-Host $("=" * 80) -ForegroundColor Red
-        Write-Host "Unknown command: $Command" -ForegroundColor Red
-        Write-Host $("=" * 80) -ForegroundColor Red
+        Write-Host "Unknown command: $Command"
         Write-Host $HELP_MESSAGE
         exit 1
     }
 }
 
-Write-Host "Done: $(Get-Date -Format o)"
+$logger.WriteHost("Done: $(Get-Date -Format o)")
 } catch {
     $logger.Flush()
     Write-Host "Error: $_" -ForegroundColor Red
