@@ -46,7 +46,12 @@ Commands:
 # Load the HTTP module
 . $(Join-Path $ThisScriptFolderPath "lib-aww-http.ps1")
 
-$logger = New-Object BufferedLogger
+# Check if $script:AWWLOG is defined; terminate if not
+if (-not $script:AWWLOG) {
+    Write-Error "Error: AWWLOG is not defined. lib-buffered-logger.ps1" -ForegroundColor Red
+    return
+}
+
 
 try{
 # Retrieve the OpenAI API key from the environment variable
@@ -124,11 +129,11 @@ Provide examples to support your disagreement when relevant, and address any pot
         # Output the response
         if ($response.choices) {
             $result = "$($response.choices[0].message.content)"
-            $logger.WriteHost("Translation: $($result)")
+            $script:AWWLOG.WriteHost("Translation: $($result)")
             $result | Set-Clipboard
 
         } else {
-            $logger.WriteError("Error: No response received from OpenAI API.")
+            $script:AWWLOG.WriteError("Error: No response received from OpenAI API.")
         }
     }
 
@@ -141,7 +146,7 @@ Provide examples to support your disagreement when relevant, and address any pot
         }
 
         if (-not $Text) {
-            $logger.WriteError("Error: Text for translation is required.")
+            $script:AWWLOG.WriteError("Error: Text for translation is required.")
             exit 1
         }
 
@@ -174,23 +179,21 @@ Provide examples to support your disagreement when relevant, and address any pot
         # Output the response
         if ($response.choices) {
             $result = "$($response.choices[0].message.content)"
-            $logger.WriteHost("Translation: $($result)")
+            $script:AWWLOG.WriteHost("Translation: $($result)")
             $result | Set-Clipboard
 
         } else {
-            $logger.WriteError("Error: No response received from OpenAI API.")
+            $script:AWWLOG.WriteError("Error: No response received from OpenAI API.")
         }
     }
 
     $COMMAND_FIX_GRAMMAR {
         # New code for the "fix-grammar" command
         $Text = "$Rest"
-        if (-not($Text)) {
-            $Text = Get-ClipboardConsent
-        }
+
         if (-not $Text) {
-            $logger.WriteError("Error: Text for grammar correction is required.")
-            exit 1
+            $script:AWWLOG.WriteError("Error: Text for grammar correction is required.")
+            throw "No text for grammar correction."
         }
 
         $messages = @(
@@ -220,21 +223,19 @@ Provide examples to support your disagreement when relevant, and address any pot
         if ($response.choices) {
             $result = "$($response.choices[0].message.content)"
             Write-Host "Grammar-corrected Text: $($result)"
-            $result | Set-Clipboard
         } else {
-            $logger.WriteError("Error: No response received from OpenAI API.")
+            $script:AWWLOG.WriteError("Error: No response received from OpenAI API.")
         }
     }
 
     Default {
-        Write-Host "Unknown command: $Command"
         Write-Host $HELP_MESSAGE
-        exit 1
+        throw "Unknown command: $Command"
     }
 }
 
-$logger.WriteHost("Done: $(Get-Date -Format o)")
+$script:AWWLOG.WriteHost("Done: $(Get-Date -Format o)")
 } catch {
-    $logger.Flush()
+    $script:AWWLOG.Flush()
     Write-Host "Error: $_" -ForegroundColor Red
 }
