@@ -8,6 +8,7 @@ $ThisScriptFolderPath = Split-Path -Parent $MyInvocation.MyCommand.Definition
 
 $COMMAND_HELP = "help"
 $COMMAND_CHECK_REPOS = "check-repos"
+$COMMAND_COMMIT_AND_PUSH = "commit-and-push"
 
 $REPO_PATH = @(
     "C:\Home\my-github\aww-hudini"
@@ -22,7 +23,6 @@ $REPO_PATH = @(
     "C:\Home\my-gogs\me"
     "C:\Home\my-gogs\public-keys"
     "C:\Home\my-gogs\shared-notes"
-
 )
 
 $HELP_MESSAGE = @"
@@ -35,7 +35,73 @@ Commands:
       Shows this help message
     $($COMMAND_CHECK_REPOS):
       Checks the repository paths for uncommitted changes
+    $($COMMAND_COMMIT_AND_PUSH):
+      Commit and push uncommitted changes for each repository
 "@
+
+function Check-Repositories {
+    param (
+        [switch]$OnlyUncommitted
+    )
+    $report = @()
+    foreach ($repo in $REPO_PATH) {
+        if (Test-Path -Path $repo) {
+            if (Test-Path -Path (Join-Path -Path $repo -ChildPath ".git")) {
+                try {
+                    $status = git -C $repo status --porcelain
+                    if ($status) {
+                        $report += [PSCustomObject]@{
+                            Repository = $repo
+                            Status = "Has uncommitted changes"
+                        }
+                    } elseif (-not $OnlyUncommitted) {
+                        $report += [PSCustomObject]@{
+                            Repository = $repo
+                            Status = "Does not have uncommitted changes"
+                        }
+                    }
+                } catch {
+                    $report += [PSCustomObject]@{
+                        Repository = $repo
+                        Status = "Error: $($_.Exception.Message)"
+                    }
+                }
+            } else {
+                $report += [PSCustomObject]@{
+                    Repository = $repo
+                    Status = "Not a git repository (.git folder not found)"
+                }
+            }
+        } else {
+            $report += [PSCustomObject]@{
+                Repository = $repo
+                Status = "Path does not exist"
+            }
+        }
+    }
+    return $report
+}
+
+function Display-Report {
+    param (
+        [array]$Report
+    )
+    $tableBorder = "=" * 80
+    Write-Host $tableBorder -ForegroundColor Yellow
+    Write-Host "Repository Status Report" -ForegroundColor Cyan
+    Write-Host $tableBorder -ForegroundColor Yellow
+    $Report | ForEach-Object {
+        $statusColor = if ($_.Status -eq "Has uncommitted changes") { "Red" } elseif ($_.Status -eq "Does not have uncommitted changes") { "Green" } else { "Yellow" }
+        if ($_.Status -eq "Has uncommitted changes") {
+            Write-Host ("{0,-60} {1}" -f $_.Repository, $_.Status) -ForegroundColor Yellow -BackgroundColor Black
+        } elseif ($_.Status -like "Error:*") {
+            Write-Host ("{0,-60} {1}" -f $_.Repository, $_.Status) -ForegroundColor LightRed -BackgroundColor Black
+        } else {
+            Write-Host ("{0,-60} {1}" -f $_.Repository, $_.Status) -ForegroundColor $statusColor
+        }
+    }
+    Write-Host $tableBorder -ForegroundColor Yellow
+}
 
 switch ($Command.ToLower()) {
     $COMMAND_HELP {
@@ -43,53 +109,30 @@ switch ($Command.ToLower()) {
     }
 
     $COMMAND_CHECK_REPOS {
-        $report = @()
-        foreach ($repo in $REPO_PATH) {
-            if (Test-Path -Path $repo) {
-                if (Test-Path -Path (Join-Path -Path $repo -ChildPath ".git")) {
+        $report = Check-Repositories -OnlyUncommitted:$false
+        Display-Report -Report $report
+    }
+
+    $COMMAND_COMMIT_AND_PUSH {
+        $report = Check-Repositories -OnlyUncommitted:$true
+        foreach ($item in $report) {
+            if ($item.Status -eq "Has uncommitted changes") {
+                $response = Read-Host "Do you want to commit changes to '$($item.Repository)'? (Y/N) [Default: N]"
+                if ($response -eq "Y" -or $response -eq "y") {
+                    Push-Location
+                    Set-Location -Path $item.Repository
                     try {
-                        $status = git -C $repo status --porcelain
-                        if ($status) {
-                            $report += [PSCustomObject]@{
-                                Repository = $repo
-                                Status = "Has uncommitted changes"
-                            }
-                        } else {
-                            $report += [PSCustomObject]@{
-                                Repository = $repo
-                                Status = "Does not have uncommitted changes"
-                            }
-                        }
+                        & aww run git-push
                     } catch {
-                        $report += [PSCustomObject]@{
-                            Repository = $repo
-                            Status = "Error: $($_.Exception.Message)"
-                        }
+                        Write-Host "Error during commit and push for '$($item.Repository)': $($_.Exception.Message)" -ForegroundColor LightRed -BackgroundColor Black
                     }
-                } else {
-                    $report += [PSCustomObject]@{
-                        Repository = $repo
-                        Status = "Not a git repository (.git folder not found)"
-                    }
-                }
-            } else {
-                $report += [PSCustomObject]@{
-                    Repository = $repo
-                    Status = "Path does not exist"
+                    Pop-Location
                 }
             }
         }
-
-        # Output the report as a table
-        $tableBorder = "=" * 80
-        Write-Host $tableBorder -ForegroundColor Yellow
-        Write-Host "Repository Status Report" -ForegroundColor Cyan
-        Write-Host $tableBorder -ForegroundColor Yellow
-        $report | ForEach-Object {
-            $statusColor = if ($_.Status -eq "Has uncommitted changes") { "Red" } elseif ($_.Status -eq "Does not have uncommitted changes") { "Green" } else { "Yellow" }
-            Write-Host ("{0,-60} {1}" -f $_.Repository, $_.Status) -ForegroundColor $statusColor
-        }
-        Write-Host $tableBorder -ForegroundColor Yellow
+        # Re-run the check and display the final report
+        $finalReport = Check-Repositories -OnlyUncommitted:$false
+        Display-Report -Report $finalReport
     }
 
     Default {
