@@ -54,7 +54,7 @@ switch ($Command.ToLower()) {
         Validate-Url -InputUrl $Url
 
         # Construct the yt-dlp command for downloading subtitles
-        $ytDlpCommand = "yt-dlp.exe --write-subs --sub-lang `"en.*`" --skip-download -o `"%(title).200B.%(ext)s`" --restrict-filenames `"$($Url)`""
+        $ytDlpCommand = "yt-dlp.exe --write-subs --write-auto-sub --sub-langs `"en`" --skip-download -o `"%(title).200B.%(ext)s`" --restrict-filenames `"$($Url)`""
         
         # Log the command for visibility
         Write-Host "Executing yt-dlp command:"
