@@ -8,9 +8,10 @@ if (-not($Command)) {
   $Command = ""
 }
 
-if (-not($Rest)) {
-    $Rest = @()
-}
+# sample for command line text, not used now tag=#ectfwqgicmf
+# if (-not($Rest)) {
+#     $Rest = @()
+# }
 
 
 
@@ -18,6 +19,8 @@ $COMMAND_HELP = "help"
 $COMMAND_TRANSLATE = "translate-fr"
 $COMMAND_NO = "no"
 $COMMAND_FIX_GRAMMAR = "fix-grammar"
+$COMMAND_FIX_DICTATION = "fix-dictation"
+$COMMAND_ASK_CODE = "ask-code"
 
 
 $HELP_MESSAGE = @"
@@ -29,14 +32,20 @@ Commands:
     $($COMMAND_HELP):
       Shows this help message
 
-    $($COMMAND_TRANSLATE) "The text to translate"  / or clipboard:
-      Translates the provided text to the target language using GPT.
+    $($COMMAND_TRANSLATE) "The text to translate" in clipboard:
+      Translates the provided text to French using GPT.
 
-    $($COMMAND_NO) "text to sya no to" / or clipboard:
-      Translates the provided text to the target language using GPT.
+    $($COMMAND_NO) "Text to say no to" in clipboard:
+      Provides a respectful and logical counter-argument to the provided text using GPT.
 
-    $($COMMAND_FIX_GRAMMAR) "Text to fix grammar" / or clipboard:
-      Fixes grammar mistakes, rearranges words, or edits for clarity while maintaining original style.
+    $($COMMAND_FIX_GRAMMAR) "Text to fix grammar" in clipboard:
+      Fixes grammar mistakes, rearranges words, or edits for clarity while maintaining the original style.
+
+    $($COMMAND_FIX_DICTATION) "Text to fix dictation" in clipboard:
+      Fixes any dictation issues, such as wrong words or misinterpretations, in text dictated via speech recognition software.
+
+    $($COMMAND_ASK_CODE) "Request for code" in clipboard:
+      Treats all user requests as requests for code implementation and responds with only the raw code.
 "@
 
 
@@ -65,15 +74,15 @@ if (-not $apiKey) {
 
 $apiEndpoint = "https://api.openai.com/v1/chat/completions"
 
-
-function Get-ClipboardConsent {
-    $response = Read-Host "Do you want to use text from clipboard? (yes/no)"
-    if ($response -eq "yes") {
-        return Get-Clipboard -Format Text
-    } else {
-        throw "No! for consent O_O"
-    }
-}
+# Not needed now, the script repurposed to use clipboard tag=#ectfwqgicmf
+# function Get-ClipboardConsent {
+#    $response = Read-Host "Do you want to use text from clipboard? (yes/no)"
+#    if ($response -eq "yes") {
+#        return Get-Clipboard -Format Text
+#    } else {
+#        throw "No! for consent O_O"
+#    }
+#}
 
 # Handles different commands
 switch ($Command.ToLower()) {
@@ -84,11 +93,7 @@ switch ($Command.ToLower()) {
 
     $COMMAND_NO {
 
-        $Text = "$Rest"
-
-        if (-not($Text)) {
-            $Text = Get-ClipboardConsent
-        }
+        $Text = Get-Clipboard -Format Text
 
         if (-not $Text) {
             Write-Host "Error: Text for refusal is required." -ForegroundColor Red
@@ -139,11 +144,7 @@ Provide examples to support your disagreement when relevant, and address any pot
 
     $COMMAND_TRANSLATE {
 
-        $Text = "$Rest"
-
-        if (-not($Text)) {
-            $Text = Get-ClipboardConsent
-        }
+        $Text = Get-Clipboard -Format Text
 
         if (-not $Text) {
             $script:AWWLOG.WriteError("Error: Text for translation is required.")
@@ -189,11 +190,11 @@ Provide examples to support your disagreement when relevant, and address any pot
 
     $COMMAND_FIX_GRAMMAR {
         # New code for the "fix-grammar" command
-        $Text = "$Rest"
+        $Text = Get-Clipboard -Format Text
 
         if (-not $Text) {
-            $script:AWWLOG.WriteError("Error: Text for grammar correction is required.")
-            throw "No text for grammar correction."
+            Write-Host "Error: Text for fix-grammar not provided" -ForegroundColor Red
+            exit 1
         }
 
         $messages = @(
@@ -225,6 +226,88 @@ Provide examples to support your disagreement when relevant, and address any pot
             Write-Host "Grammar-corrected Text: $($result)"
         } else {
             $script:AWWLOG.WriteError("Error: No response received from OpenAI API.")
+        }
+    }
+
+    $COMMAND_FIX_DICTATION {
+        # New code for the "fix-dictation" command
+        $Text = Get-Clipboard -Format Text
+
+        if (-not $Text) {
+            Write-Host "Error: Text for fix-dictation not provided" -ForegroundColor Red
+            exit 1
+        }
+
+        $messages = @(
+            @{
+                role = "system"
+                content = "The following text was dictated via speech recognition software. Fix any dictation issues, such as wrong words or misinterpretations, while maintaining the original style."
+            },
+            @{
+                role = "user"
+                content = "$Text"
+            }
+        )
+
+        $requestBody = @{
+            model = "gpt-4o-mini"
+            messages = $messages
+            max_tokens = 100
+        } | ConvertTo-Json
+
+        $headers = @{
+            "Authorization" = "Bearer $($apiKey)"
+            "Content-Type"  = "application/json"
+        }
+
+        $response = Invoke-AwwHttpPost -Uri $apiEndpoint -Headers $headers -Body $requestBody
+
+        if ($response.choices) {
+            $result = "$($response.choices[0].message.content)"
+            Write-Host "Dictation-corrected Text: $($result)"
+        } else {
+            WriteHost "Error: No response received from OpenAI API." -ForegroundColor Red
+        }
+    }
+
+    $COMMAND_ASK_CODE {
+        # New code for the "ask-code" command
+        $Text = Get-Clipboard -Format Text
+
+        if (-not $Text) {
+            Write-Host "Error: Text for ask-code not provided" -ForegroundColor Red
+            exit 1
+        }
+
+        $messages = @(
+            @{
+                role = "system"
+                content = "Treat all user requests as requests for code implementation. Respond with only the raw code in plain text, without Markdown formatting, comments, or any extra text. If a user request does not clearly specify a task requiring code, or if it is ambiguous or nonsensical in a coding context, respond with a refusal message. Do not guess or interpret beyond code requests."
+            },
+            @{
+                role = "user"
+                content = "$Text"
+            }
+        )
+
+        $requestBody = @{
+            model = "gpt-4o-mini"
+            messages = $messages
+            max_tokens = 100
+        } | ConvertTo-Json
+
+        $headers = @{
+            "Authorization" = "Bearer $($apiKey)"
+            "Content-Type"  = "application/json"
+        }
+
+        $response = Invoke-AwwHttpPost -Uri $apiEndpoint -Headers $headers -Body $requestBody
+
+        if ($response.choices) {
+            $result = "$($response.choices[0].message.content)"
+            Write-Host "$($result)"
+        } else {
+            WriteHost "Error: No response received from OpenAI API."  -ForegroundColor Red
         }
     }
 
