@@ -12,6 +12,7 @@ $ThisScriptFolderPath = Split-Path -Parent $MyInvocation.MyCommand.Definition
 # Define command constants
 $COMMAND_HELP = "help"
 $COMMAND_SUBS = "subs"
+$COMMAND_VTT_TO_TXT = "vtt-to-txt"
 
 $HELP_MESSAGE = @"
 Usage:
@@ -22,10 +23,15 @@ Commands:
       Youtube video management tools. 
       Shows this help message
 
-    $($COMMAND_SUBS):
+    $($COMMAND_SUBS) -Url:
       Download subtitles for a specified YouTube URL.
       Options:
           -Url: The YouTube video URL (required for the 'subs' command).
+
+    $($COMMAND_VTT_TO_TXT) -Url:
+      Converts vtt file to planin text file with same name + ".txt"
+      Options:
+          -Url: vtt file path
 "@
 
 # Validate URL format (for 'subs' command)
@@ -75,6 +81,48 @@ switch ($Command.ToLower()) {
             Write-Host "$($_.Exception.Message)" -ForegroundColor Red
             exit 1
         }
+    }
+
+    $COMMAND_VTT_TO_TXT {
+        if (!(Test-Path $Url)) {
+            throw "The vtt file path='$($Url)' does not exit."
+        }
+        $inputFilePath = $Url
+        $outputFilePath = "$($inputFilePath).txt"
+
+        # Initialize an array to store the cleaned lines
+        $cleanedLines = @()
+        $previousLine = ""
+
+        # Read each line from the input file
+        foreach ($line in Get-Content -Path $inputFilePath) {
+            # Skip the 'WEBVTT' header or any metadata lines (e.g., 'Kind: captions')
+            if ($line -match "^(WEBVTT|Kind:|Language:)") {
+                continue
+            }
+
+            # Remove timestamps (format: '00:00:00.520 --> 00:00:03.350 align:start position:0%')
+            $line = [regex]::Replace($line, "\d{2}:\d{2}:\d{2}\.\d{3} --> \d{2}:\d{2}:\d{2}\.\d{3}.*", "")
+
+            # Remove inline timestamps and tags (format: '<00:00:00.680><c>...</c>')
+            $line = [regex]::Replace($line, "<\d{2}:\d{2}:\d{2}\.\d{3}>|<.*?>", "")
+
+            # Trim leading and trailing whitespace
+            $line = $line.Trim()
+
+            # Check if the line is non-empty and different from the previous line
+            if ($line -ne "" -and $line -ne $previousLine) {
+                # Add the line to the output if it's unique in sequence
+                $cleanedLines += $line
+                # Update the previous line variable to the current line
+                $previousLine = $line
+            }
+        }
+
+        # Write the cleaned unique lines to the output file
+        $cleanedLines | Set-Content -Path $outputFilePath
+
+        Write-Host "Cleaned transcript saved to $($outputFilePath)"
     }
 
     Default {
