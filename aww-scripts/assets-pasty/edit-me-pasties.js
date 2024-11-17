@@ -1024,6 +1024,17 @@ You MUST stick to the guidance that the goal of your writing is to bring value t
     id: "f5a21738-77fc-400e-b22e-e2327507b718",
     title: "Pasty 23",
     content: String.raw`
+    [b]MUST[/b]
+
+===============
+**This is the most important instructions: when I say "you must" this means you must follow this instruction at all cost when I say "avoid to do something" you must avoid to do this at all cost this is your prime directives and they have the highest priority. Adjust your behavior accordantly. **
+================
+`},
+
+{
+    id: "b893e2bd-1700-4884-ac74-2b6176a9e97e",
+    title: "Pasty 24",
+    content: String.raw`
     [b][/b]
 
 `},
