@@ -10,20 +10,61 @@ $COMMAND_HELP = "help"
 $COMMAND_CHECK_REPOS = "check-repos"
 $COMMAND_COMMIT_AND_PUSH = "commit-and-push"
 
-$REPO_PATH = @(
-    "C:\Home\my-github\aww-hudini"
-    "C:\Home\my-github\awwlib-cpp"
-    "C:\Home\my-github\awwtools"
-    "C:\Home\my-github\dz-private-notes"
-    "C:\Home\my-github\dzharii.github.io"
-    "C:\Home\my-github\personal-blog-dmytro.zharii.com"
-    "C:\Home\my-github\toys-awwtools-com"
-    "C:\Home\my-github\w311-2024"
-    "C:\Users\home\.awwtools"
-    "C:\Home\my-gogs\me"
-    "C:\Home\my-gogs\public-keys"
-    "C:\Home\my-gogs\shared-notes"
-)
+$REPO_PATH = @()
+
+function Try-GetExtraRepos {
+    param (
+        [array]$REPO_PATH
+    )
+
+    # Get current user home directory and hostname
+    $currentUserHome = [System.Environment]::GetFolderPath('UserProfile')
+    $currentHostName = [System.Net.Dns]::GetHostName().ToUpper()
+    $currentHostNameRepos = "{0}_REPOS.ps1" -f $currentHostName
+    $repoScriptPath = Join-Path -Path $currentUserHome -ChildPath $currentHostNameRepos
+
+    Write-Host "Expected script path to load: '$($repoScriptPath)'" -ForegroundColor Yellow
+
+    # Initialize try-catch block to load external script
+    try {
+        if (Test-Path -Path $repoScriptPath) {
+            Write-Host "Loading script file: '$($repoScriptPath)'" -ForegroundColor Cyan
+            # Load the script file
+            . $repoScriptPath
+
+            # Ensure that Get-RepoPath is defined in the loaded script
+            if (Get-Command -Name Get-RepoPath -ErrorAction SilentlyContinue) {
+                Write-Host "Successfully loaded script and found Get-RepoPath function." -ForegroundColor Green
+                $extraRepoPaths = Get-RepoPath
+
+                # Check if paths exist and filter out non-existing paths
+                $validExtraRepoPaths = @()
+                foreach ($repoPath in $extraRepoPaths) {
+                    if (Test-Path -Path $repoPath) {
+                        $validExtraRepoPaths += $repoPath
+                    } else {
+                        Write-Host "Repo path does not exist: '$($repoPath)'" -ForegroundColor Red
+                    }
+                }
+
+                # Merge $REPO_PATH with valid extra repo paths
+                $mergedRepoPath = $REPO_PATH + $validExtraRepoPaths | Sort-Object -Unique
+                return $mergedRepoPath
+            } else {
+                Write-Host "The loaded script does not define the required function Get-RepoPath." -ForegroundColor Red
+            }
+        } else {
+            Write-Host "Script file not found: '$($repoScriptPath)'" -ForegroundColor Red
+        }
+    } catch {
+        Write-Host "An error occurred while trying to load extra repos: $_" -ForegroundColor Red
+    }
+
+    return $REPO_PATH
+}
+
+# MERGE 
+$REPO_PATH = Try-GetExtraRepos -REPO_PATH $REPO_PATH
 
 $HELP_MESSAGE = @"
 Usage:
