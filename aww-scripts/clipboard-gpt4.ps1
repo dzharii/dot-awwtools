@@ -134,11 +134,9 @@ Provide examples to support your disagreement when relevant, and address any pot
         # Output the response
         if ($response.choices) {
             $result = "$($response.choices[0].message.content)"
-            $script:AWWLOG.WriteHost("Translation: $($result)")
-            $result | Set-Clipboard
-
+            Write-Host "$($result)"
         } else {
-            $script:AWWLOG.WriteError("Error: No response received from OpenAI API.")
+            WriteHost "Error: No response received from OpenAI API."  -ForegroundColor Red
         }
     }
 
@@ -180,11 +178,9 @@ Provide examples to support your disagreement when relevant, and address any pot
         # Output the response
         if ($response.choices) {
             $result = "$($response.choices[0].message.content)"
-            $script:AWWLOG.WriteHost("Translation: $($result)")
-            $result | Set-Clipboard
-
+            Write-Host "$($result)"
         } else {
-            $script:AWWLOG.WriteError("Error: No response received from OpenAI API.")
+            WriteHost "Error: No response received from OpenAI API."  -ForegroundColor Red
         }
     }
 

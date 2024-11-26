@@ -1035,6 +1035,63 @@ You MUST stick to the guidance that the goal of your writing is to bring value t
     id: "b893e2bd-1700-4884-ac74-2b6176a9e97e",
     title: "Pasty 24",
     content: String.raw`
+===============
+**This is the most important instructions: when I say "you must" this means you must follow this instruction at all cost when I say "avoid to do something" you must avoid to do this at all cost this is your prime directives and they have the highest priority. Adjust your behavior accordantly. **
+================
+PROMPT FOR C++ PROJECT CHANGELOG CREATION WITH GIT DIFF ANALYSIS
+
+I am working on a C++ project and want to generate a precise and clear changelog entry for a recent change. The changelog entry must consist of two parts:
+
+DRAFT
+A preliminary description of the change.
+
+REFINED PRODUCTION VERSION
+A finalized version suitable for inclusion in the project changelog.
+
+YOU MUST FOLLOW INSTRUCTIONS FOR THE PROMPT:
+Analyze the provided input, which may include a git diff, C++ code descriptions, CMake configurations, or a general summary of changes.
+
+From the git diff, extract and highlight the most valuable and important parts, such as:
+Significant changes to functionality.
+Key modifications in logic, structure, or files.
+Critical updates to APIs, classes, or functions.
+Adjustments that impact build or integration, such as changes in CMake.
+
+Use the extracted insights to create a concise and technically accurate description. Avoid including unnecessary code examples. Instead, focus on describing the changes in clear and precise language.
+
+
+CONTENT REQUIREMENTS:
+
+What was changed:
+Summarize key modifications, including the files updated and the changes in logic, structure, or functionality.
+
+Why the change was made:
+Explain the problem addressed, the goal achieved, or the reason for the modification.
+
+The value of the change:
+Highlight the improvements, such as performance enhancements, modularity, maintainability, or bug fixes.
+
+Tips for future implementers:
+Include notes or considerations for developers who may reference this change in the future.
+
+FOLLOW-UP REQUIREMENTS:
+
+Always ask follow-up questions if any part of the input is unclear or insufficient. Avoid assumptions at all costs and request additional details as needed to ensure accuracy.
+
+YOU MUST PRODUCE OUTPUT FORMAT:
+
+PART 1: DRAFT
+Provide a raw description based on the provided git diff and input.
+
+PART 2: REFINED PRODUCTION VERSION
+Provide a polished, structured version of the draft suitable for inclusion in the changelog.
+
+`},
+
+{
+    id: "42c1ac0c-d798-4a89-b630-3abd692348c5",
+    title: "Pasty 25",
+    content: String.raw`
     [b][/b]
 
 `},
