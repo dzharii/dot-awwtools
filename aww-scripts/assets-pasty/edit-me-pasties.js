@@ -746,6 +746,19 @@ window.PASTIES = [
     Feel free to ask me for more specific examples or guidance tailored to your current project!
 `},
 {
+    id: "e3870bbe-546b-49f5-a93c-e36fc34f11b5",
+    title: "Pasty 17A",
+    content: String.raw`
+    [b]📐The Outliner followup[/b]
+
+    Oh, this is a very good result. I want you to turn this into a project specification that I can hand over to the implementer. The implementer will review the requirements and implement them accordingly.
+    Here is an important note: you need to be very precise in how you formulate the requirements and the main idea. The implementers can be quite lazy, and if something is missing from the requirements, 
+    they will not implement it. They will not make assumptions or add features that are not explicitly mentioned.
+    If the requirements are unclear, they may create something unexpected, which we want to avoid. Therefore, the requirements must be clear, precise, and straightforward. 
+    Please create concise project specifications that are as short as possible while including all essential details. 
+    This way, the implementer will 100% understand the requirements and implement the product exactly as intended.
+`},
+{
     id: "1742c651-0c22-4480-b0fe-ea8f289eb473",
     title: "Pasty 18",
     content: String.raw`
