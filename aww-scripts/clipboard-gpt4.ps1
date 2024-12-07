@@ -96,8 +96,8 @@ switch ($Command.ToLower()) {
 
     $COMMAND_NO {
 
-        $Text = Get-Clipboard -Format Text
-
+        # $Text = Get-Clipboard -Format Text
+        $Text = Get-Clipboard
         if (-not $Text) {
             Write-Host "Error: Text for refusal is required." -ForegroundColor Red
             exit 1
@@ -145,7 +145,9 @@ Provide examples to support your disagreement when relevant, and address any pot
 
     $COMMAND_TRANSLATE {
 
-        $Text = Get-Clipboard -Format Text
+        # $Text = Get-Clipboard -Format Text
+        $Text = Get-Clipboard
+
 
         if (-not $Text) {
             $script:AWWLOG.WriteError("Error: Text for translation is required.")
@@ -189,8 +191,9 @@ Provide examples to support your disagreement when relevant, and address any pot
 
     $COMMAND_FIX_GRAMMAR {
         # New code for the "fix-grammar" command
-        $Text = Get-Clipboard -Format Text
-
+        # $Text = Get-Clipboard -Format Text
+        $Text = Get-Clipboard
+     
         if (-not $Text) {
             Write-Host "Error: Text for fix-grammar not provided" -ForegroundColor Red
             exit 1
@@ -230,7 +233,9 @@ Provide examples to support your disagreement when relevant, and address any pot
 
     $COMMAND_FIX_DICTATION {
         # New code for the "fix-dictation" command
-        $Text = Get-Clipboard -Format Text
+        # $Text = Get-Clipboard -Format Text
+        $Text = Get-Clipboard
+
 
         if (-not $Text) {
             Write-Host "Error: Text for fix-dictation not provided" -ForegroundColor Red
@@ -270,7 +275,9 @@ Provide examples to support your disagreement when relevant, and address any pot
     }
 
     $COMMAND_FIX_GRAMMAR2 {
-        $Text = Get-Clipboard -Format Text
+        # $Text = Get-Clipboard -Format Text
+        $Text = Get-Clipboard
+
 
         if (-not $Text) {
             Write-Host "Error: Text for $($COMMAND_FIX_GRAMMAR2) not provided" -ForegroundColor Red
@@ -330,7 +337,8 @@ When replying, provide only the corrected text, without any explanations or addi
 
     $COMMAND_ASK_CODE {
         # New code for the "ask-code" command
-        $Text = Get-Clipboard -Format Text
+        # $Text = Get-Clipboard -Format Text
+        $Text = Get-Clipboard
 
         if (-not $Text) {
             Write-Host "Error: Text for ask-code not provided" -ForegroundColor Red
