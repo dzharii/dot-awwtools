@@ -83,6 +83,7 @@ function Invoke-PandocConversion {
     $pandocOptions = @(
         "--from markdown",       # Specify input format
         "--to org",              # Specify output format
+        "--ascii",             # use ascii output
         "--output `"$OutputFile`"", # Output file
         "--wrap=$Wrap",          # Set line wrapping
         "--columns=$Columns"     # Set the default line width
@@ -114,121 +115,6 @@ function Invoke-PandocConversion {
     }
 }
 
-<#
-.SYNOPSIS
-Replaces all non-ASCII characters in a file with their ASCII equivalents based on a predefined replacement map.
-
-.DESCRIPTION
-The `Replace-NonAsciiCharacters` function processes a given input file line by line, replacing all non-ASCII characters with their closest ASCII equivalents. 
-This is achieved by using a predefined replacement map (dictionary), which contains common replacements such as smart quotes, accented characters, 
-and special symbols. The function ensures that the output file contains only ASCII-compatible characters.
-
-The function reads the input file line by line, parses each line character by character, and performs replacements when a character matches 
-an entry in the replacement map. If the character does not exist in the map, it is retained as-is. The processed content is then written to the 
-specified output file.
-
-This approach ensures efficient processing, even for large files, and produces a clean, sanitized output.
-
-.PARAMETER InputFile
-Specifies the path to the input file that will be processed. The file must exist; otherwise, the function will terminate with an error.
-
-.PARAMETER OutputFile
-Specifies the path to the output file where the processed content will be saved. If the file already exists, it will be overwritten.
-
-.EXAMPLE
-Replace-NonAsciiCharacters -InputFile "C:\Path\To\Input.txt" -OutputFile "C:\Path\To\Output.txt"
-
-This example processes the file `Input.txt` located at `C:\Path\To\`, replacing all non-ASCII characters with their ASCII equivalents.
-The sanitized content is saved in `Output.txt` in the same directory.
-
-#>
-function Replace-NonAsciiCharacters {
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory = $true)]
-        [string]$InputFile, # The input file path
-
-        [Parameter(Mandatory = $true)]
-        [string]$OutputFile # The output file path
-    )
-
-    # Define the replacement map for non-ASCII characters
-    $ReplacementMap = @{
-        # Smart Quotes
-        '‘' = "'";  # Left Single Quote → Straight Apostrophe
-        '’' = "'";  # Right Single Quote → Straight Apostrophe
-        '“' = '"';  # Left Double Quote → Straight Double Quote
-        '”' = '"';  # Right Double Quote → Straight Double Quote
-
-        # En Dash and Em Dash
-        '–' = '-';  # En Dash → Hyphen
-        '—' = '-';  # Em Dash → Hyphen
-
-        # Accented Characters (Common Examples)
-        'é' = 'e';  # Latin Small Letter E with Acute → e
-        'è' = 'e';  # Latin Small Letter E with Grave → e
-        'ê' = 'e';  # Latin Small Letter E with Circumflex → e
-        'ë' = 'e';  # Latin Small Letter E with Diaeresis → e
-        'á' = 'a';  # Latin Small Letter A with Acute → a
-        'à' = 'a';  # Latin Small Letter A with Grave → a
-        'â' = 'a';  # Latin Small Letter A with Circumflex → a
-        'ä' = 'a';  # Latin Small Letter A with Diaeresis → a
-        'ñ' = 'n';  # Latin Small Letter N with Tilde → n
-        'ç' = 'c';  # Latin Small Letter C with Cedilla → c
-
-        # Ellipsis
-        '…' = '...';  # Horizontal Ellipsis → Three Dots
-
-        # Other Symbols
-        '©' = '(c)';  # Copyright Symbol → (c)
-        '®' = '(R)';  # Registered Trademark Symbol → (R)
-        '™' = '(TM)'; # Trademark Symbol → (TM)
-    }
-
-    # Validate input file existence
-    if (-not (Test-Path -Path $InputFile)) {
-        throw  "ERROR: The input file '$($InputFile)' does not exist."
-    }
-
-    try {
-        Write-Host "Starting processing of the file '$InputFile'." -ForegroundColor Yellow
-
-        # Read the file content line by line
-        $Content = Get-Content -Path $InputFile -ErrorAction Stop
-        $ProcessedLines = @() # Array to hold processed lines
-
-        foreach ($Line in $Content) {
-            # Create a StringBuilder to efficiently build the processed line
-            $StringBuilder = New-Object System.Text.StringBuilder
-
-            # Process each character in the line
-            foreach ($Char in $Line.ToCharArray()) {
-                # Check if the character exists in the replacement map
-                if ($ReplacementMap.ContainsKey($Char)) {
-                    # Replace the character with its ASCII equivalent
-                    $null = $StringBuilder.Append($ReplacementMap[$Char])
-                } else {
-                    # Keep the character as is
-                    $null = $StringBuilder.Append($Char)
-                }
-            }
-
-            # Append the processed line to the array
-            $ProcessedLines += $StringBuilder.ToString()
-        }
-
-        # Write the processed content to the output file
-        Write-Host "Writing processed content to the output file '$OutputFile'." -ForegroundColor Green
-        $ProcessedLines | Set-Content -Path $OutputFile -Encoding UTF8 -ErrorAction Stop
-
-        Write-Host "Processing completed successfully." -ForegroundColor Green
-    }
-    catch {
-        Write-Host "ERROR: An error occurred during processing. Details: $($_.Exception.Message)" -ForegroundColor Red
-    }
-}
-
-
 switch ($Command.ToLower()) {
     
     $COMMAND_HELP {
@@ -247,11 +133,9 @@ switch ($Command.ToLower()) {
         $OutputFile = [System.IO.Path]::ChangeExtension($InputFile, ".org")
 
         try {
-            $asciiConvertedInputFile = "$($InputFile).md"
-            # Convert Non-ASCII characters
-            Replace-NonAsciiCharacters -InputFile $InputFile -OutputFile $asciiConvertedInputFile
-            # Execute the Pandoc conversion and capture the result
-            $result = Invoke-PandocConversion -InputFile $asciiConvertedInputFile -OutputFile $OutputFile -Columns 130 -Wrap "auto"
+
+           # Execute the Pandoc conversion and capture the result
+            $result = Invoke-PandocConversion -InputFile $InputFile -OutputFile $OutputFile -Columns 130 -Wrap "auto"
 
             # Check the result and throw an error if there was an issue
             if ($result -ne "") {
