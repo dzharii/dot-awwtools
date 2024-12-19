@@ -8,6 +8,7 @@ $ThisScriptFolderPath = Split-Path -Parent $MyInvocation.MyCommand.Definition
 
 $COMMAND_HELP = "help"
 $COMMAND_WINDOW_INFORMATION = "window-information"
+$COMMAND_GET_WINDOW_TITLE = "get-window-title"
 
 $HELP_MESSAGE = @"
 Usage:
@@ -26,6 +27,8 @@ Commands:
         - Additional technical details such as memory usage and thread count.
       The report will be saved as a Markdown file in the current directory.
 
+    $($COMMAND_GET_WINDOW_TITLE):
+      Returns the title of the currently focused window.
 "@
 
 # -------------------------------------------
@@ -156,6 +159,35 @@ function Get-FocusedWindowReport {
 }
 
 # -------------------------------------------
+# Function: Get-WindowTitle
+# Description: Retrieves the title of the currently focused window.
+# -------------------------------------------
+function Get-WindowTitle {
+    try {
+        Add-Type @"
+            using System;
+            using System.Runtime.InteropServices;
+            public class User32 {
+                [DllImport("user32.dll")]
+                public static extern IntPtr GetForegroundWindow();
+                [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+                public static extern int GetWindowText(IntPtr hWnd, System.Text.StringBuilder lpString, int nMaxCount);
+            }
+"@
+
+        $hWnd = [User32]::GetForegroundWindow()
+        $title = New-Object -TypeName System.Text.StringBuilder -ArgumentList 256
+        [User32]::GetWindowText($hWnd, $title, $title.Capacity)
+        return $title.ToString()
+    } catch {
+        Write-Host "Failed to retrieve the window title. Error: $($_.Exception.Message)" -ForegroundColor Red
+        return $null
+    }
+}
+
+
+
+# -------------------------------------------
 # Main Switch for Commands
 # -------------------------------------------
 switch ($Command.ToLower()) {
@@ -171,6 +203,17 @@ switch ($Command.ToLower()) {
             exit 1
         } else {
             Write-Host $result.Data
+        }
+    }
+
+    $COMMAND_GET_WINDOW_TITLE {
+        # Call the Get-WindowTitle function to get the focused window's title
+        $title = Get-WindowTitle
+        if ($null -eq $title) {
+            Write-Host "No window title found or an error occurred." -ForegroundColor Red
+            exit 1
+        } else {
+            Write-Host "The current window title is: '$title'"
         }
     }
 

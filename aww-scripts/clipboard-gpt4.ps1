@@ -23,6 +23,8 @@ $COMMAND_FIX_DICTATION = "fix-dictation"
 $COMMAND_ASK_CODE = "ask-code"
 $COMMAND_FIX_GRAMMAR2 = "fix-grammar2"
 
+$GPT_MAX_TOKENS_MEDIUM = 500
+
 
 $HELP_MESSAGE = @"
 Usage:
@@ -77,15 +79,44 @@ if (-not $apiKey) {
 
 $apiEndpoint = "https://api.openai.com/v1/chat/completions"
 
-# Not needed now, the script repurposed to use clipboard tag=#ectfwqgicmf
-# function Get-ClipboardConsent {
-#    $response = Read-Host "Do you want to use text from clipboard? (yes/no)"
-#    if ($response -eq "yes") {
-#        return Get-Clipboard -Format Text
-#    } else {
-#        throw "No! for consent O_O"
-#    }
-#}
+# -------------------------------------------
+# Function: Get-WindowTitle
+# Description: Retrieves the title of the currently focused window.
+# -------------------------------------------
+function Get-WindowTitle {
+    try {
+        Add-Type @"
+            using System;
+            using System.Runtime.InteropServices;
+            public class User32 {
+                [DllImport("user32.dll")]
+                public static extern IntPtr GetForegroundWindow();
+                [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+                public static extern int GetWindowText(IntPtr hWnd, System.Text.StringBuilder lpString, int nMaxCount);
+            }
+"@
+
+        $hWnd = [User32]::GetForegroundWindow()
+        $title = New-Object -TypeName System.Text.StringBuilder -ArgumentList 256
+        [User32]::GetWindowText($hWnd, $title, $title.Capacity)
+        return "$($title.ToString())"
+    } catch {
+        Write-Host "Failed to retrieve the window title. Error: $($_.Exception.Message)" -ForegroundColor Red
+    }
+    return ""
+}
+
+function Test-EmacsOnWindows {
+    if (-not([System.Environment]::OSVersion.Platform -eq 'Win32NT')) {
+        return $false
+    }
+    $title = "$(Get-WindowTitle)"
+    if ($title -and $title.ToLower().Contains("- GNU Emacs at ".ToLower())) {
+        return $true
+    }
+    return $false;
+}
+
 
 # Handles different commands
 switch ($Command.ToLower()) {
@@ -123,7 +154,7 @@ Provide examples to support your disagreement when relevant, and address any pot
         $requestBody = @{
             model = "gpt-4o-mini"
             messages = $messages
-            max_tokens = 100
+            max_tokens = $GPT_MAX_TOKENS_MEDIUM
         } | ConvertTo-Json
 
         $headers = @{
@@ -169,7 +200,7 @@ Provide examples to support your disagreement when relevant, and address any pot
         $requestBody = @{
             model = "gpt-4o-mini"
             messages = $messages
-            max_tokens = 100
+            max_tokens = $GPT_MAX_TOKENS_MEDIUM
         } | ConvertTo-Json
 
         $headers = @{
@@ -213,7 +244,7 @@ Provide examples to support your disagreement when relevant, and address any pot
         $requestBody = @{
             model = "gpt-4o-mini"
             messages = $messages
-            max_tokens = 100
+            max_tokens = $GPT_MAX_TOKENS_MEDIUM
         } | ConvertTo-Json
 
         $headers = @{
@@ -256,7 +287,7 @@ Provide examples to support your disagreement when relevant, and address any pot
         $requestBody = @{
             model = "gpt-4o-mini"
             messages = $messages
-            max_tokens = 100
+            max_tokens = $GPT_MAX_TOKENS_MEDIUM
         } | ConvertTo-Json
 
         $headers = @{
@@ -317,7 +348,7 @@ When replying, provide only the corrected text, without any explanations or addi
         $requestBody = @{
             model = "gpt-4o-mini"
             messages = $messages
-            max_tokens = 300
+            max_tokens = $GPT_MAX_TOKENS_MEDIUM
         } | ConvertTo-Json
 
         $headers = @{
@@ -359,7 +390,7 @@ When replying, provide only the corrected text, without any explanations or addi
         $requestBody = @{
             model = "gpt-4o-mini"
             messages = $messages
-            max_tokens = 100
+            max_tokens = $GPT_MAX_TOKENS_MEDIUM
         } | ConvertTo-Json
 
         $headers = @{
@@ -371,7 +402,38 @@ When replying, provide only the corrected text, without any explanations or addi
 
         if ($response.choices) {
             $result = "$($response.choices[0].message.content)"
-            Write-Host "$($result)"
+
+            if (Test-EmacsOnWindows) {
+                #TODO 2024-12-18: Move it into a separate function
+
+                # This is a hack for Espanso and Emacs on Windows. Emacs does not work well with Espanso input, so I am simulating input with System.Windows.Forms.
+                Add-Type -AssemblyName System.Windows.Forms
+                $lines = $result -split "\r?\n"
+
+                [System.Windows.Forms.SendKeys]::SendWait("{ENTER}")
+                foreach ($line in $lines) {
+                    # type each character in the line separately
+                    foreach ($char in $line.ToCharArray()) {
+                        # if char matches [\{\}%()~!+^] then send it as a special key
+                        if ($char -match '[\{\}%\(\)~!\+\^]') {
+                            [System.Windows.Forms.SendKeys]::SendWait("{" + $char + "}")
+                        } else {
+                            [System.Windows.Forms.SendKeys]::SendWait($char)
+                        }
+                        Start-Sleep -Milliseconds 1
+                    }
+
+                    [System.Windows.Forms.SendKeys]::SendWait("{ENTER}")
+                }
+                
+                # add more spaces, because espaso will try to erase the tail characters with backspace
+                for ($i = 0; $i -le 20; $i++) {
+                    [System.Windows.Forms.SendKeys]::SendWait(" ")
+                }
+            
+            } else {
+                Write-Host "$($result)"
+            }
         } else {
             WriteHost "Error: No response received from OpenAI API."  -ForegroundColor Red
         }
