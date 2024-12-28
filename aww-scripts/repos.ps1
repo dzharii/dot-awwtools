@@ -23,6 +23,22 @@ function Try-GetExtraRepos {
     $currentHostNameRepos = "{0}_REPOS.ps1" -f $currentHostName
     $repoScriptPath = Join-Path -Path $currentUserHome -ChildPath $currentHostNameRepos
 
+    $reposFunctionHelp = @"
+You can define the function Get-RepoPath in the file:
+$($currentHostNameRepos) 
+as follows: 
+
+#+begin_src lang=ps1
+
+function Get-RepoPath {
+   return @(
+       "C:\Home\my-github\aww-hudini"
+  )
+}
+
+#+end_src
+"@
+
     Write-Host "Expected script path to load: '$($repoScriptPath)'" -ForegroundColor Yellow
 
     # Initialize try-catch block to load external script
@@ -52,12 +68,14 @@ function Try-GetExtraRepos {
                 return $mergedRepoPath
             } else {
                 Write-Host "The loaded script does not define the required function Get-RepoPath." -ForegroundColor Red
+                Write-Host $reposFunctionHelp
             }
         } else {
             Write-Host "Script file not found: '$($repoScriptPath)'" -ForegroundColor Red
+            Write-Host $reposFunctionHelp
         }
     } catch {
-        Write-Host "An error occurred while trying to load extra repos: $_" -ForegroundColor Red
+        Write-Host "An error occurred while trying to load the repository list at Try-GetExtraRepos: $_" -ForegroundColor Red
     }
 
     return $REPO_PATH
