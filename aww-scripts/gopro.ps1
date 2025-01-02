@@ -29,7 +29,7 @@ foreach ($group in $groupedFiles) {
         $ffmpegArgs = "-f concat -safe 0 -i `"$($concatFile)`" -vcodec libx265 -preset faster -crf 28 `"$($outputFile)`""
     }
 
-    $ffmpegCmd = "ffmpeg.exe $($ffmpegArgs)"
+    $ffmpegCmd = "ffmpeg $($ffmpegArgs)"
 
     if ($DryRun) {
         Write-Host "Dry Run: $($ffmpegCmd)"
