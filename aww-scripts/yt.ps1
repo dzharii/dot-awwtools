@@ -13,6 +13,7 @@ $ThisScriptFolderPath = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $COMMAND_HELP = "help"
 $COMMAND_SUBS = "subs"
 $COMMAND_VTT_TO_TXT = "vtt-to-txt"
+$COMMAND_DOWNLOAD = "download"
 
 $HELP_MESSAGE = @"
 Usage:
@@ -29,18 +30,23 @@ Commands:
           -Url: The YouTube video URL (required for the 'subs' command).
 
     $($COMMAND_VTT_TO_TXT) -Url:
-      Converts vtt file to planin text file with same name + ".txt"
+      Converts vtt file to plain text file with same name + ".txt"
       Options:
           -Url: vtt file path
+
+    $($COMMAND_DOWNLOAD) -Url:
+      Download a YouTube video.
+      Options:
+          -Url: The YouTube video URL (required for the 'download' command).
 "@
 
-# Validate URL format (for 'subs' command)
+# Validate URL format (for 'subs' and 'download' commands)
 function Validate-Url {
     param (
         [string]$InputUrl
     )
     if (-not $InputUrl) {
-        Write-Host "Error: The -Url parameter is required for the 'subs' command." -ForegroundColor Red
+        Write-Host "Error: The -Url parameter is required." -ForegroundColor Red
         exit 1
     }
     if ($InputUrl -notmatch "^https?://[a-zA-Z0-9\-.]+\.[a-zA-Z]{2,}(/\S*)?$") {
@@ -123,6 +129,34 @@ switch ($Command.ToLower()) {
         $cleanedLines | Set-Content -Path $outputFilePath
 
         Write-Host "Cleaned transcript saved to $($outputFilePath)"
+    }
+
+    $COMMAND_DOWNLOAD {
+        # Ensure that the URL parameter is provided and valid for 'download' command
+        Validate-Url -InputUrl $Url
+
+        # Construct the yt-dlp command for downloading the video
+        $ytDlpCommand = "yt-dlp.exe -o `"%(title)s.%(ext)s`" --restrict-filenames `"$($Url)`""
+        
+        # Log the command for visibility
+        Write-Host "Executing yt-dlp command to download video:"
+        Write-Host "$($ytDlpCommand)" -ForegroundColor Cyan
+
+        try {
+            # Execute the yt-dlp command
+            Invoke-Expression $ytDlpCommand
+            if ($LASTEXITCODE -ne 0) {
+                Write-Host "Error: yt-dlp command failed with exit code $($LASTEXITCODE)" -ForegroundColor Red
+                exit $LASTEXITCODE
+            } else {
+                Write-Host "Video downloaded successfully." -ForegroundColor Green
+            }
+        }
+        catch {
+            Write-Host "Error: An exception occurred while executing yt-dlp command." -ForegroundColor Red
+            Write-Host "$($_.Exception.Message)" -ForegroundColor Red
+            exit 1
+        }
     }
 
     Default {
