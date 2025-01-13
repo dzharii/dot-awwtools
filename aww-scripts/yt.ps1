@@ -14,6 +14,7 @@ $COMMAND_HELP = "help"
 $COMMAND_SUBS = "subs"
 $COMMAND_VTT_TO_TXT = "vtt-to-txt"
 $COMMAND_DOWNLOAD = "download"
+$COMMAND_DOWNLOAD_MP3 = "download-mp3"
 
 $HELP_MESSAGE = @"
 Usage:
@@ -38,6 +39,11 @@ Commands:
       Download a YouTube video.
       Options:
           -Url: The YouTube video URL (required for the 'download' command).
+
+    $($COMMAND_DOWNLOAD_MP3) -Url:
+      Download a YouTube video as MP3.
+      Options:
+          -Url: The YouTube video URL (required for the 'download-mp3' command).
 "@
 
 # Validate URL format (for 'subs' and 'download' commands)
@@ -150,6 +156,34 @@ switch ($Command.ToLower()) {
                 exit $LASTEXITCODE
             } else {
                 Write-Host "Video downloaded successfully." -ForegroundColor Green
+            }
+        }
+        catch {
+            Write-Host "Error: An exception occurred while executing yt-dlp command." -ForegroundColor Red
+            Write-Host "$($_.Exception.Message)" -ForegroundColor Red
+            exit 1
+        }
+    }
+
+    $COMMAND_DOWNLOAD_MP3 {
+        # Ensure that the URL parameter is provided and valid for 'download-mp3' command
+        Validate-Url -InputUrl $Url
+
+        # Construct the yt-dlp command for downloading the video as MP3
+        $ytDlpCommand = "yt-dlp.exe -x --audio-format mp3 -o `"%(title)s.%(ext)s`" --restrict-filenames `"$($Url)`""
+        
+        # Log the command for visibility
+        Write-Host "Executing yt-dlp command to download MP3:"
+        Write-Host "$($ytDlpCommand)" -ForegroundColor Cyan
+
+        try {
+            # Execute the yt-dlp command
+            Invoke-Expression $ytDlpCommand
+            if ($LASTEXITCODE -ne 0) {
+                Write-Host "Error: yt-dlp command failed with exit code $($LASTEXITCODE)" -ForegroundColor Red
+                exit $LASTEXITCODE
+            } else {
+                Write-Host "MP3 downloaded successfully." -ForegroundColor Green
             }
         }
         catch {
