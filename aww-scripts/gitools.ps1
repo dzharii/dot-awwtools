@@ -13,6 +13,7 @@ $COMMAND_SHOW_GIT_CHANGES = "show-git-changes"
 $COMMAND_DIFF_FROM_MASTER = "diff-from-master"
 $COMMAND_DIFF_FROM_MAIN = "diff-from-main"
 $COMMAND_REMOVE_UNTRACKED = "remove-untracked"
+$COMMAND_COPY_TO_CLIPBOARD_CURRENT_CHANGES_DIFF = "copy-to-clipboard-current-changes-diff"
 
 # inspired by yt/uFrPgUjv_Y8  ; Enrico Campidoglio
 $COMMAND_PRETTY_LOG = "pretty-log"
@@ -41,6 +42,9 @@ Commands:
 
     $($COMMAND_REMOVE_UNTRACKED):
       Removes all untracked files and directories from the repository.
+
+    $($COMMAND_COPY_TO_CLIPBOARD_CURRENT_CHANGES_DIFF):
+      Produces a unified diff for all staged changes and copies it to the clipboard.
 
     $($COMMAND_PRETTY_LOG):
       Displays a pretty log of commits with decorations and relative dates.
@@ -107,6 +111,21 @@ switch ($Command.ToLower()) {
     $COMMAND_DIFF_FROM_MAIN {
         # Display differences between the current branch and master
         git diff main..
+    }
+
+    $COMMAND_COPY_TO_CLIPBOARD_CURRENT_CHANGES_DIFF {
+        Write-Host "Producing unified diff for all staged changes and copying to clipboard..." -ForegroundColor Cyan
+        # Generate a unified diff for staged changes
+        $diffString = git diff --cached | Out-String
+        if ($diffString.Trim()) {
+            # Copy the diff output to the clipboard
+            $diffString | Set-Clipboard
+            Write-Host $diffString
+            Write-Host "Unified diff copied to clipboard." -ForegroundColor Green
+        }
+        else {
+            Write-Host "No staged changes found." -ForegroundColor Yellow
+        }
     }
 
     $COMMAND_REMOVE_UNTRACKED {
