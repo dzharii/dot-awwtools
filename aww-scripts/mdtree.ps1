@@ -61,6 +61,8 @@ $extensions = @(
     "*.xml"
     "*.ini"
     "*.md"
+    "*.css"
+    "*.scss"
 )
 
 if ($Include -ne "") {
