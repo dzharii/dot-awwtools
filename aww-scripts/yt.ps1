@@ -301,11 +301,12 @@ switch ($Command.ToLower()) {
             "-i",
             "`"$($videoFile)`"",
             "-vf",
-            "`"select='gt(scene,0.4)',drawtext=fontfile=$($fontPath):text='%{pts\:hms}':x=10:y=10:fontsize=24:fontcolor=black:box=1:boxcolor=white@1.0:boxborderw=20`"",
+            "`"select='gt(scene,0.05)',drawtext=fontfile=$($fontPath):text='VIDEO TIMESTAMP %{pts\:hms}':x=10:y=10:fontsize=24:fontcolor=black:box=1:boxcolor=white@1.0:boxborderw=20`"",
             "-vsync",
             "vfr",
             "-q:v",
             "2",
+            # "-t 600", # debug
             "`"$($outputFolder)\slide_%03d.jpg`""
         )
         $ffmpegCmd = $ffmpegCmdArray -join " "
