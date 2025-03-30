@@ -930,11 +930,9 @@ window.PASTIES = [
     file content here
     new line here
     __FILE::filename2.ext
-
     file content here
 
-    __FILE::filename2.ext
-
+    __FILE::filename3.ext
     file content here
     ${CODE_BLOCK_END}
 
