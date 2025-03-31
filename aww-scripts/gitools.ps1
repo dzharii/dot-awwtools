@@ -20,6 +20,7 @@ $COMMAND_PRETTY_LOG = "pretty-log"
 $COMMAND_WHAT_CHANGES_ARE_NEW = "what-changes-are-new-in-my-branch"
 $COMMAND_WHAT_CHANGES_ARE_IN_MASTER_NOT_MY_BRANCH = "what-changes-are-in-master-but-not-in-my-branch"
 $COMMAND_MOVE_FILES_TO_OTHER_BRANCH = "move-files-to-other-branch"
+$COMMAND_CHECKOUT_PR = "checkout-pr"
 
 
 $HELP_MESSAGE = @"
@@ -59,6 +60,11 @@ Commands:
     $($COMMAND_MOVE_FILES_TO_OTHER_BRANCH) -Name <target_branch_name>:
       Moves all staged changes to another branch. The target branch is specified with the -Name parameter.
       If the branch doesn't exist, it will be created.
+
+    $($COMMAND_CHECKOUT_PR) -Name <branch_name>:
+      Checks out the specified PR branch and prepares it for review.
+      Sets up the changes from the PR as unstaged modifications against the main branch.
+      This allows reviewing the exact changes the PR introduces.
 "@
 
 function Get-MasterOrMainBranchName {
@@ -82,6 +88,13 @@ function CheckBranchExists {
 
     git show-ref --verify --quiet refs/heads/$branchName
     return $LASTEXITCODE -eq 0
+}
+
+function Ensure-CleanWorkingDirectory {
+    $status = git status --porcelain
+    if ($status) {
+        throw "Working directory is not clean. Please commit or stash your changes before checking out a PR."
+    }
 }
 
 
@@ -201,6 +214,104 @@ switch ($Command.ToLower()) {
             Write-Host "Staged changes moved to branch: $($Name)" -ForegroundColor Green
         } catch {
             Write-Host "An error occurred: $_" -ForegroundColor Red
+            exit 1
+        }
+    }
+
+    $COMMAND_CHECKOUT_PR {
+        if (-not $PSBoundParameters.ContainsKey('Name')) {
+            Write-Host "Error: The -Name parameter is required for the '$($COMMAND_CHECKOUT_PR)' command." -ForegroundColor Red
+            Write-Host "Usage: gitools.ps1 $($COMMAND_CHECKOUT_PR) -Name <branch_name>" -ForegroundColor Yellow
+            exit 1
+        }
+
+        $branchName = $Name
+        Write-Host "Preparing to check out and review PR from branch: $($branchName)" -ForegroundColor Cyan
+        
+        try {
+            # Step 1: Ensure we have a clean working directory
+            Write-Host "Checking working directory status..." -ForegroundColor Cyan
+            Ensure-CleanWorkingDirectory
+
+            # Step 2: Fetch latest changes to ensure we have the branch
+            Write-Host "Fetching latest changes from remote..." -ForegroundColor Cyan
+            git fetch
+            if ($LASTEXITCODE -ne 0) {
+                throw "Failed to fetch from remote. Please check your network connection and try again."
+            }
+
+            # Step 3: Check if the branch exists
+            $branchExists = git show-ref --verify --quiet refs/heads/$branchName
+            $remoteBranchExists = git show-ref --verify --quiet refs/remotes/origin/$branchName
+            
+            if ($LASTEXITCODE -ne 0 -and $remoteBranchExists -ne 0) {
+                throw "Branch '$($branchName)' doesn't exist locally or remotely. Please verify the branch name."
+            }
+
+            # Step 4: Determine main branch (master or main)
+            $mainBranch = Get-MasterOrMainBranchName
+            if ($null -eq $mainBranch) {
+                throw "Unable to determine the main branch (master/main). Repository structure may be non-standard."
+            }
+            
+            # Step 5: Ensure main branch is up to date
+            Write-Host "Updating the $($mainBranch) branch..." -ForegroundColor Cyan
+            git checkout $mainBranch
+            if ($LASTEXITCODE -ne 0) {
+                throw "Failed to checkout $($mainBranch) branch."
+            }
+            
+            git pull
+            if ($LASTEXITCODE -ne 0) {
+                throw "Failed to pull latest changes for $($mainBranch) branch."
+            }
+
+            # Step 6: Create a temporary branch for review
+            $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+            $reviewBranchName = "review-pr-$($timestamp)"
+            Write-Host "Creating temporary review branch: $($reviewBranchName)" -ForegroundColor Cyan
+            git checkout -b $reviewBranchName
+            if ($LASTEXITCODE -ne 0) {
+                throw "Failed to create temporary review branch."
+            }
+
+            # Step 7: Apply changes from PR branch without committing
+            Write-Host "Applying changes from $($branchName) for review..." -ForegroundColor Cyan
+            
+            # If branch exists only remotely, use the remote reference
+            $targetBranch = $branchName
+            if ($LASTEXITCODE -ne 0) {
+                $targetBranch = "origin/$($branchName)"
+            }
+            
+            git merge --no-commit --no-ff $targetBranch
+            $mergeExitCode = $LASTEXITCODE
+            
+            # Step 8: Check for merge conflicts
+            if ($mergeExitCode -ne 0) {
+                Write-Host "Merge conflicts detected! Please resolve conflicts manually." -ForegroundColor Red
+                Write-Host "After resolving conflicts, you can continue reviewing the changes." -ForegroundColor Yellow
+                Write-Host "To abort the merge and return to the previous state, run: git merge --abort" -ForegroundColor Yellow
+                exit 1
+            }
+
+            # Step 9: Reset staging area to have changes as unstaged modifications
+            git reset
+            if ($LASTEXITCODE -ne 0) {
+                throw "Failed to unstage the changes."
+            }
+
+            Write-Host "Success! PR changes from '$($branchName)' are now ready for review as unstaged modifications." -ForegroundColor Green
+            Write-Host "You are on a temporary branch '$($reviewBranchName)'." -ForegroundColor Green
+            Write-Host "After review, you can:" -ForegroundColor Cyan
+            Write-Host "  - Discard changes: git reset --hard" -ForegroundColor Yellow
+            Write-Host "  - Return to $($mainBranch): git checkout $($mainBranch)" -ForegroundColor Yellow
+            Write-Host "  - Clean up the temporary branch: git branch -D $($reviewBranchName)" -ForegroundColor Yellow
+        }
+        catch {
+            Write-Host "Error: $_" -ForegroundColor Red
+            Write-Host "Operation failed. Your repository may be in an inconsistent state." -ForegroundColor Red
+            Write-Host "To return to a clean state, you can run: git reset --hard && git checkout $($mainBranch)" -ForegroundColor Yellow
             exit 1
         }
     }
