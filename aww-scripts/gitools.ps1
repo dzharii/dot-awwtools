@@ -97,6 +97,16 @@ function Ensure-CleanWorkingDirectory {
     }
 }
 
+function Set-BranchNoPushConfig {
+    param(
+        [string]$branchName
+    )
+    
+    # Configure this branch to be non-pushable
+    git config branch.$branchName.pushRemote "no_push"
+    git config branch.$branchName.remote "no_remote"
+}
+
 
 switch ($Command.ToLower()) {
     $COMMAND_HELP {
@@ -225,8 +235,8 @@ switch ($Command.ToLower()) {
             exit 1
         }
 
-        $branchName = $Name
-        Write-Host "Preparing to check out and review PR from branch: $($branchName)" -ForegroundColor Cyan
+        $prBranch = $Name
+        Write-Host "Preparing to review PR from branch: $($prBranch)" -ForegroundColor Cyan
         
         try {
             # Step 1: Ensure we have a clean working directory
@@ -240,12 +250,12 @@ switch ($Command.ToLower()) {
                 throw "Failed to fetch from remote. Please check your network connection and try again."
             }
 
-            # Step 3: Check if the branch exists
-            $branchExists = git show-ref --verify --quiet refs/heads/$branchName
-            $remoteBranchExists = git show-ref --verify --quiet refs/remotes/origin/$branchName
+            # Step 3: Check if the PR branch exists
+            $branchExists = git show-ref --verify --quiet refs/heads/$prBranch
+            $remoteBranchExists = git show-ref --verify --quiet refs/remotes/origin/$prBranch
             
             if ($LASTEXITCODE -ne 0 -and $remoteBranchExists -ne 0) {
-                throw "Branch '$($branchName)' doesn't exist locally or remotely. Please verify the branch name."
+                throw "PR branch '$($prBranch)' doesn't exist locally or remotely. Please verify the branch name."
             }
 
             # Step 4: Determine main branch (master or main)
@@ -253,9 +263,9 @@ switch ($Command.ToLower()) {
             if ($null -eq $mainBranch) {
                 throw "Unable to determine the main branch (master/main). Repository structure may be non-standard."
             }
-            
-            # Step 5: Ensure main branch is up to date
-            Write-Host "Updating the $($mainBranch) branch..." -ForegroundColor Cyan
+
+            # Step 5: Make sure main branch is up to date
+            Write-Host "Updating $($mainBranch) branch..." -ForegroundColor Cyan
             git checkout $mainBranch
             if ($LASTEXITCODE -ne 0) {
                 throw "Failed to checkout $($mainBranch) branch."
@@ -263,55 +273,68 @@ switch ($Command.ToLower()) {
             
             git pull
             if ($LASTEXITCODE -ne 0) {
-                throw "Failed to pull latest changes for $($mainBranch) branch."
+                Write-Host "Warning: Failed to pull latest changes for $($mainBranch). Continuing with local version." -ForegroundColor Yellow
             }
 
-            # Step 6: Create a temporary branch for review
-            $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
-            $reviewBranchName = "review-pr-$($timestamp)"
-            Write-Host "Creating temporary review branch: $($reviewBranchName)" -ForegroundColor Cyan
+            # Step 6: Create a temporary branch for review based on main branch with timestamp and username
+            $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+            $formattedTimestamp = $timestamp -replace '[-: ]', '-'
+            $currentUser = [Environment]::UserName
+            $reviewBranchName = "review-pr-$($currentUser)-$($formattedTimestamp)"
+            
+            Write-Host "Creating temporary review branch from $($mainBranch): $($reviewBranchName)" -ForegroundColor Cyan
             git checkout -b $reviewBranchName
             if ($LASTEXITCODE -ne 0) {
                 throw "Failed to create temporary review branch."
             }
 
-            # Step 7: Apply changes from PR branch without committing
-            Write-Host "Applying changes from $($branchName) for review..." -ForegroundColor Cyan
-            
-            # If branch exists only remotely, use the remote reference
-            $targetBranch = $branchName
-            if ($LASTEXITCODE -ne 0) {
-                $targetBranch = "origin/$($branchName)"
+            # Step 7: Configure the branch to prevent accidental pushing
+            Write-Host "Configuring branch to prevent accidental publishing..." -ForegroundColor Cyan
+            Set-BranchNoPushConfig -branchName $reviewBranchName
+
+            # Step 8: Determine the full branch reference
+            $targetBranch = $prBranch
+            if (-not $branchExists -and $remoteBranchExists -eq 0) {
+                $targetBranch = "origin/$($prBranch)"
             }
-            
+
+            # Step 9: Apply changes from PR branch without committing
+            Write-Host "Applying changes from $($targetBranch) as unstaged modifications..." -ForegroundColor Cyan
             git merge --no-commit --no-ff $targetBranch
-            $mergeExitCode = $LASTEXITCODE
-            
-            # Step 8: Check for merge conflicts
-            if ($mergeExitCode -ne 0) {
+            if ($LASTEXITCODE -ne 0) {
                 Write-Host "Merge conflicts detected! Please resolve conflicts manually." -ForegroundColor Red
-                Write-Host "After resolving conflicts, you can continue reviewing the changes." -ForegroundColor Yellow
-                Write-Host "To abort the merge and return to the previous state, run: git merge --abort" -ForegroundColor Yellow
+                Write-Host "After resolving conflicts, run 'git add .' to mark them as resolved." -ForegroundColor Yellow
+                Write-Host "Then run 'git reset' to unstage all changes for review." -ForegroundColor Yellow
+                Write-Host "To abort the process and return to the previous state, run: git merge --abort" -ForegroundColor Yellow
                 exit 1
             }
 
-            # Step 9: Reset staging area to have changes as unstaged modifications
+            # Step 10: Unstage all changes to see them as modifications
             git reset
             if ($LASTEXITCODE -ne 0) {
                 throw "Failed to unstage the changes."
             }
 
-            Write-Host "Success! PR changes from '$($branchName)' are now ready for review as unstaged modifications." -ForegroundColor Green
-            Write-Host "You are on a temporary branch '$($reviewBranchName)'." -ForegroundColor Green
-            Write-Host "After review, you can:" -ForegroundColor Cyan
-            Write-Host "  - Discard changes: git reset --hard" -ForegroundColor Yellow
-            Write-Host "  - Return to $($mainBranch): git checkout $($mainBranch)" -ForegroundColor Yellow
-            Write-Host "  - Clean up the temporary branch: git branch -D $($reviewBranchName)" -ForegroundColor Yellow
+            Write-Host "Success! All changes from PR branch '$($prBranch)' are now visible as unstaged modifications." -ForegroundColor Green
+            Write-Host "You are on a temporary branch '$($reviewBranchName)' based on $($mainBranch)." -ForegroundColor Green
+            Write-Host "" -ForegroundColor White
+            Write-Host "IMPORTANT: This branch is configured to prevent accidental publishing." -ForegroundColor Yellow
+            Write-Host "DO NOT attempt to push this branch to remote - it is for local review only." -ForegroundColor Yellow
+            Write-Host "" -ForegroundColor White
+            Write-Host "You can now review the changes in your favorite Git tool or IDE." -ForegroundColor Cyan
+            Write-Host "" -ForegroundColor White
+            Write-Host "When finished reviewing:" -ForegroundColor Cyan
+            Write-Host "  - Return to main branch: git checkout $($mainBranch)" -ForegroundColor Yellow
+            Write-Host "  - Clean up temporary branch: git branch -D $($reviewBranchName)" -ForegroundColor Yellow
         }
         catch {
             Write-Host "Error: $_" -ForegroundColor Red
-            Write-Host "Operation failed. Your repository may be in an inconsistent state." -ForegroundColor Red
-            Write-Host "To return to a clean state, you can run: git reset --hard && git checkout $($mainBranch)" -ForegroundColor Yellow
+            Write-Host "Operation failed. Attempting to restore previous state..." -ForegroundColor Red
+            
+            git merge --abort 2>$null
+            git checkout $mainBranch 2>$null
+            
+            Write-Host "To ensure a clean state, you may want to run: git reset --hard" -ForegroundColor Yellow
             exit 1
         }
     }
