@@ -96,18 +96,7 @@ function Ensure-CleanWorkingDirectory {
         throw "Working directory is not clean. Please commit or stash your changes before checking out a PR."
     }
 }
-
-function Set-BranchNoPushConfig {
-    param(
-        [string]$branchName
-    )
-    
-    # Configure this branch to be non-pushable
-    git config branch.$($branchName).pushRemote "no_push"
-    git config branch.$($branchName).remote "no_remote"
-}
-
-
+                                
 switch ($Command.ToLower()) {
     $COMMAND_HELP {
         Write-Host $HELP_MESSAGE
@@ -282,13 +271,13 @@ switch ($Command.ToLower()) {
                 throw "Failed to create checkout branch '$($prBranch)'."
             }
 
-            # Step 7: Configure the branch to prevent accidental pushing
-            Write-Host "Configuring branch to prevent accidental publishing..." -ForegroundColor Cyan
-            Set-BranchNoPushConfig -branchName $prBranch
-
             # Step 8: Unstage changed files since the branch has created
             Write-Host "Unstaging changed" -ForegroundColor Cyan
             git reset --mixed (& git merge-base origin/$($mainBranch) HEAD)
+
+            if ($LASTEXITCODE -ne 0) {
+                throw "Failed to git reset --mixed for '$($prBranch)'."
+            }
         }
         catch {
             Write-Host "Error: $_" -ForegroundColor Red
