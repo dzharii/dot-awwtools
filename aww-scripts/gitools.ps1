@@ -103,8 +103,8 @@ function Set-BranchNoPushConfig {
     )
     
     # Configure this branch to be non-pushable
-    git config branch.$branchName.pushRemote "no_push"
-    git config branch.$branchName.remote "no_remote"
+    git config branch.$($branchName).pushRemote "no_push"
+    git config branch.$($branchName).remote "no_remote"
 }
 
 
@@ -276,65 +276,23 @@ switch ($Command.ToLower()) {
                 Write-Host "Warning: Failed to pull latest changes for $($mainBranch). Continuing with local version." -ForegroundColor Yellow
             }
 
-            # Step 6: Create a temporary branch for review based on main branch with timestamp and username
-            $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-            $formattedTimestamp = $timestamp -replace '[-: ]', '-'
-            $currentUser = [Environment]::UserName
-            $reviewBranchName = "review-pr-$($currentUser)-$($formattedTimestamp)"
-            
-            Write-Host "Creating temporary review branch from $($mainBranch): $($reviewBranchName)" -ForegroundColor Cyan
-            git checkout -b $reviewBranchName
+            Write-Host "Checkout to prBranch='$($prBranch)'" -ForegroundColor Cyan
+            git checkout -b "$($prBranch)"
             if ($LASTEXITCODE -ne 0) {
-                throw "Failed to create temporary review branch."
+                throw "Failed to create checkout branch '$($prBranch)'."
             }
 
             # Step 7: Configure the branch to prevent accidental pushing
             Write-Host "Configuring branch to prevent accidental publishing..." -ForegroundColor Cyan
-            Set-BranchNoPushConfig -branchName $reviewBranchName
+            Set-BranchNoPushConfig -branchName $prBranch
 
-            # Step 8: Determine the full branch reference
-            $targetBranch = $prBranch
-            if (-not $branchExists -and $remoteBranchExists -eq 0) {
-                $targetBranch = "origin/$($prBranch)"
-            }
-
-            # Step 9: Apply changes from PR branch without committing
-            Write-Host "Applying changes from $($targetBranch) as unstaged modifications..." -ForegroundColor Cyan
-            git merge --no-commit --no-ff $targetBranch
-            if ($LASTEXITCODE -ne 0) {
-                Write-Host "Merge conflicts detected! Please resolve conflicts manually." -ForegroundColor Red
-                Write-Host "After resolving conflicts, run 'git add .' to mark them as resolved." -ForegroundColor Yellow
-                Write-Host "Then run 'git reset' to unstage all changes for review." -ForegroundColor Yellow
-                Write-Host "To abort the process and return to the previous state, run: git merge --abort" -ForegroundColor Yellow
-                exit 1
-            }
-
-            # Step 10: Unstage all changes to see them as modifications
-            git reset
-            if ($LASTEXITCODE -ne 0) {
-                throw "Failed to unstage the changes."
-            }
-
-            Write-Host "Success! All changes from PR branch '$($prBranch)' are now visible as unstaged modifications." -ForegroundColor Green
-            Write-Host "You are on a temporary branch '$($reviewBranchName)' based on $($mainBranch)." -ForegroundColor Green
-            Write-Host "" -ForegroundColor White
-            Write-Host "IMPORTANT: This branch is configured to prevent accidental publishing." -ForegroundColor Yellow
-            Write-Host "DO NOT attempt to push this branch to remote - it is for local review only." -ForegroundColor Yellow
-            Write-Host "" -ForegroundColor White
-            Write-Host "You can now review the changes in your favorite Git tool or IDE." -ForegroundColor Cyan
-            Write-Host "" -ForegroundColor White
-            Write-Host "When finished reviewing:" -ForegroundColor Cyan
-            Write-Host "  - Return to main branch: git checkout $($mainBranch)" -ForegroundColor Yellow
-            Write-Host "  - Clean up temporary branch: git branch -D $($reviewBranchName)" -ForegroundColor Yellow
+            # Step 8: Unstage changed files since the branch has created
+            Write-Host "Unstaging changed" -ForegroundColor Cyan
+            git reset --mixed (& git merge-base origin/$($mainBranch) HEAD)
         }
         catch {
             Write-Host "Error: $_" -ForegroundColor Red
             Write-Host "Operation failed. Attempting to restore previous state..." -ForegroundColor Red
-            
-            git merge --abort 2>$null
-            git checkout $mainBranch 2>$null
-            
-            Write-Host "To ensure a clean state, you may want to run: git reset --hard" -ForegroundColor Yellow
             exit 1
         }
     }
