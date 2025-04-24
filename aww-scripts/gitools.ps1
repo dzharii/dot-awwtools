@@ -2,7 +2,7 @@ param(
     [Parameter(Mandatory=$true)]
     [string]$Command,
     [Parameter(Mandatory=$false)]
-    [string]$Name 
+    [string]$Name
 )
 
 $ErrorActionPreference = "Stop"
@@ -96,7 +96,7 @@ function Ensure-CleanWorkingDirectory {
         throw "Working directory is not clean. Please commit or stash your changes before checking out a PR."
     }
 }
-                                
+
 switch ($Command.ToLower()) {
     $COMMAND_HELP {
         Write-Host $HELP_MESSAGE
@@ -218,70 +218,71 @@ switch ($Command.ToLower()) {
     }
 
     $COMMAND_CHECKOUT_PR {
+        throw "This shit does not work 2025-04-23"
         if (-not $PSBoundParameters.ContainsKey('Name')) {
-            Write-Host "Error: The -Name parameter is required for the '$($COMMAND_CHECKOUT_PR)' command." -ForegroundColor Red
-            Write-Host "Usage: gitools.ps1 $($COMMAND_CHECKOUT_PR) -Name <branch_name>" -ForegroundColor Yellow
+            Write-Host "Error: -Name <branch_name> is required for '$COMMAND_CHECKOUT_PR'." -ForegroundColor Red
             exit 1
         }
 
         $prBranch = $Name
-        Write-Host "Preparing to review PR from branch: $($prBranch)" -ForegroundColor Cyan
-        
+        Write-Host "=== checkout-pr: Preparing to review PR branch '$prBranch' ===" -ForegroundColor Cyan
         try {
-            # Step 1: Ensure we have a clean working directory
-            Write-Host "Checking working directory status..." -ForegroundColor Cyan
+            Write-Host "Step 1: Validating clean working directory..." -ForegroundColor Cyan
             Ensure-CleanWorkingDirectory
+            Write-Host "  Working directory is clean." -ForegroundColor Green
 
-            # Step 2: Fetch latest changes to ensure we have the branch
-            Write-Host "Fetching latest changes from remote..." -ForegroundColor Cyan
-            git fetch
-            if ($LASTEXITCODE -ne 0) {
-                throw "Failed to fetch from remote. Please check your network connection and try again."
-            }
+            Write-Host "Step 2: Fetching all remotes..." -ForegroundColor Cyan
+            git fetch --all
+            if ($LASTEXITCODE -ne 0) { throw "git fetch failed." }
+            Write-Host "  Fetch completed." -ForegroundColor Green
 
-            # Step 3: Check if the PR branch exists
-            $branchExists = git show-ref --verify --quiet refs/heads/$prBranch
-            $remoteBranchExists = git show-ref --verify --quiet refs/remotes/origin/$prBranch
-            
-            if ($LASTEXITCODE -ne 0 -and $remoteBranchExists -ne 0) {
-                throw "PR branch '$($prBranch)' doesn't exist locally or remotely. Please verify the branch name."
-            }
-
-            # Step 4: Determine main branch (master or main)
             $mainBranch = Get-MasterOrMainBranchName
-            if ($null -eq $mainBranch) {
-                throw "Unable to determine the main branch (master/main). Repository structure may be non-standard."
-            }
+            Write-Host "Step 3: Using main branch '$mainBranch'." -ForegroundColor Cyan
 
-            # Step 5: Make sure main branch is up to date
-            Write-Host "Updating $($mainBranch) branch..." -ForegroundColor Cyan
+            Write-Host "Step 4: Checking out main branch and updating..." -ForegroundColor Cyan
             git checkout $mainBranch
-            if ($LASTEXITCODE -ne 0) {
-                throw "Failed to checkout $($mainBranch) branch."
-            }
-            
-            git pull
-            if ($LASTEXITCODE -ne 0) {
-                Write-Host "Warning: Failed to pull latest changes for $($mainBranch). Continuing with local version." -ForegroundColor Yellow
+            git pull --no-edit
+            Write-Host "  '$mainBranch' is up to date." -ForegroundColor Green
+
+            Write-Host "Step 5: Checking out PR branch '$prBranch'..." -ForegroundColor Cyan
+            git checkout $prBranch
+            Write-Host "  Switched to branch '$prBranch'." -ForegroundColor Green
+
+            # New Step 6: Compare current branch to main
+            Write-Host "Step 6: Listing files changed between 'origin/$mainBranch' and '$prBranch'..." -ForegroundColor Cyan
+            Write-Host "  Executing: git diff --name-only origin/$mainBranch..$prBranch" -ForegroundColor Gray
+            $rawChanged = git diff --name-only origin/$mainBranch..$prBranch
+
+            if (-not $rawChanged) {
+                Write-Host "  No file-level changes detected between origin/$mainBranch and $prBranch." -ForegroundColor Yellow
+            } else {
+                Write-Host "  Raw changed files:`n$rawChanged" -ForegroundColor Gray
+
+                $filesToUnstage = @()
+                foreach ($file in $rawChanged) {
+                    $trimmed = $file.Trim()
+                    if ($trimmed) {
+                        $filesToUnstage += $trimmed
+                        Write-Host "    Queued for unstage: $trimmed" -ForegroundColor Cyan
+                    }
+                }
+                Write-Host "  Total files to unstage: $($filesToUnstage.Count)" -ForegroundColor Green
+
+                foreach ($file in $filesToUnstage) {
+                    Write-Host "    Unstaging: $file" -ForegroundColor Yellow
+                    git reset HEAD -- $file
+                    if ($LASTEXITCODE -eq 0) {
+                        Write-Host "      Successfully unstaged: $file" -ForegroundColor Green
+                    } else {
+                        Write-Host "      Failed to unstage: $file" -ForegroundColor Red
+                    }
+                }
             }
 
-            Write-Host "Checkout to prBranch='$($prBranch)'" -ForegroundColor Cyan
-            git checkout -b "$($prBranch)"
-            if ($LASTEXITCODE -ne 0) {
-                throw "Failed to create checkout branch '$($prBranch)'."
-            }
-
-            # Step 8: Unstage changed files since the branch has created
-            Write-Host "Unstaging changed" -ForegroundColor Cyan
-            git reset --mixed (& git merge-base origin/$($mainBranch) HEAD)
-
-            if ($LASTEXITCODE -ne 0) {
-                throw "Failed to git reset --mixed for '$($prBranch)'."
-            }
+            Write-Host "=== checkout-pr completed for '$prBranch' ===" -ForegroundColor Cyan
         }
         catch {
-            Write-Host "Error: $_" -ForegroundColor Red
-            Write-Host "Operation failed. Attempting to restore previous state..." -ForegroundColor Red
+            Write-Host "Error in checkout-pr: $_" -ForegroundColor Red
             exit 1
         }
     }
