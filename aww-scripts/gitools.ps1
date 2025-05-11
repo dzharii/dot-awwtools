@@ -248,10 +248,10 @@ switch ($Command.ToLower()) {
 
             Write-Host "Step 6: Patching $mainBranch with new changes from $prBranch" -ForegroundColor Cyan
 
-            $diffOutput = git diff `"$mainBranch`"..`"$prBranch`"
-            Write-Host $diffOutput
-            $diffOutput | git apply --index
+            $patchCommandlineScriptWindows = "$ThisScriptFolderPath/gitools-git-apply-patch-pr-to-main-windows.cmd"
 
+            & $patchCommandlineScriptWindows $mainBranch $prBranch
+            if ($LASTEXITCODE -ne 0) { throw "git apply failed." }
 
             Write-Host "=== checkout-pr completed for '$prBranch' ===" -ForegroundColor Cyan
         }
