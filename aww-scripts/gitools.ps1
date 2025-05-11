@@ -218,7 +218,6 @@ switch ($Command.ToLower()) {
     }
 
     $COMMAND_CHECKOUT_PR {
-        throw "This shit does not work 2025-04-23"
         if (-not $PSBoundParameters.ContainsKey('Name')) {
             Write-Host "Error: -Name <branch_name> is required for '$COMMAND_CHECKOUT_PR'." -ForegroundColor Red
             exit 1
@@ -239,45 +238,20 @@ switch ($Command.ToLower()) {
             $mainBranch = Get-MasterOrMainBranchName
             Write-Host "Step 3: Using main branch '$mainBranch'." -ForegroundColor Cyan
 
-            Write-Host "Step 4: Checking out main branch and updating..." -ForegroundColor Cyan
+            Write-Host "Step 4: Checking out main branch and updating." -ForegroundColor Cyan
             git checkout $mainBranch
-            git pull --no-edit
+            git pull
             Write-Host "  '$mainBranch' is up to date." -ForegroundColor Green
 
-            Write-Host "Step 5: Checking out PR branch '$prBranch'..." -ForegroundColor Cyan
-            git checkout $prBranch
-            Write-Host "  Switched to branch '$prBranch'." -ForegroundColor Green
+            Write-Host "Step 5: Checking changes in PR branch '$prBranch'." -ForegroundColor Cyan
+            git diff --name-status `"$mainBranch`"..`"$prBranch`"
 
-            # New Step 6: Compare current branch to main
-            Write-Host "Step 6: Listing files changed between 'origin/$mainBranch' and '$prBranch'..." -ForegroundColor Cyan
-            Write-Host "  Executing: git diff --name-only origin/$mainBranch..$prBranch" -ForegroundColor Gray
-            $rawChanged = git diff --name-only origin/$mainBranch..$prBranch
+            Write-Host "Step 6: Patching $mainBranch with new changes from $prBranch" -ForegroundColor Cyan
 
-            if (-not $rawChanged) {
-                Write-Host "  No file-level changes detected between origin/$mainBranch and $prBranch." -ForegroundColor Yellow
-            } else {
-                Write-Host "  Raw changed files:`n$rawChanged" -ForegroundColor Gray
+            $diffOutput = git diff `"$mainBranch`"..`"$prBranch`"
+            Write-Host $diffOutput
+            $diffOutput | git apply --index
 
-                $filesToUnstage = @()
-                foreach ($file in $rawChanged) {
-                    $trimmed = $file.Trim()
-                    if ($trimmed) {
-                        $filesToUnstage += $trimmed
-                        Write-Host "    Queued for unstage: $trimmed" -ForegroundColor Cyan
-                    }
-                }
-                Write-Host "  Total files to unstage: $($filesToUnstage.Count)" -ForegroundColor Green
-
-                foreach ($file in $filesToUnstage) {
-                    Write-Host "    Unstaging: $file" -ForegroundColor Yellow
-                    git reset HEAD -- $file
-                    if ($LASTEXITCODE -eq 0) {
-                        Write-Host "      Successfully unstaged: $file" -ForegroundColor Green
-                    } else {
-                        Write-Host "      Failed to unstage: $file" -ForegroundColor Red
-                    }
-                }
-            }
 
             Write-Host "=== checkout-pr completed for '$prBranch' ===" -ForegroundColor Cyan
         }
