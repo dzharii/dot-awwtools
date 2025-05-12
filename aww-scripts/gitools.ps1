@@ -244,7 +244,7 @@ switch ($Command.ToLower()) {
             Write-Host "  '$mainBranch' is up to date." -ForegroundColor Green
 
             Write-Host "Step 5: Checking changes in PR branch '$prBranch'." -ForegroundColor Cyan
-            git diff --name-status `"$mainBranch`"..`"$prBranch`"
+            git diff --name-status --merge-base `"$mainBranch`" `"$prBranch`"
 
             Write-Host "Step 6: Patching $mainBranch with new changes from $prBranch" -ForegroundColor Cyan
 
