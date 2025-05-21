@@ -25,7 +25,7 @@ if ERRORLEVEL 1 (
     exit /b %ERRORLEVEL%
 )
 
-git diff --merge-base "%mainBranch%" "%prBranch%" | git apply --index
+git diff --binary --merge-base "%mainBranch%" "%prBranch%" | git apply --index
 if ERRORLEVEL 1 (
     exit /b %ERRORLEVEL%
 )
