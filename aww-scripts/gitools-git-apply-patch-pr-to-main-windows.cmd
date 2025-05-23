@@ -2,31 +2,38 @@
 REM apply_patch.cmd: apply PR branch changes onto main as staged uncommitted
 REM Usage: apply_patch.cmd mainBranch prBranch
 
-setlocal
+setlocal enabledelayedexpansion
 
 set "mainBranch=%~1"
 set "prBranch=%~2"
 
-git checkout "%prBranch%"
-if ERRORLEVEL 1 (
+git fetch
+if %ERRORLEVEL% NEQ 0 (
     exit /b %ERRORLEVEL%
 )
+
+git checkout "%prBranch%"
+if %ERRORLEVEL% NEQ 0 (
+    exit /b %ERRORLEVEL%
+)
+
 git pull
-if ERRORLEVEL 1 (
+if %ERRORLEVEL% NEQ 0 (
     exit /b %ERRORLEVEL%
 )
 
 git checkout "%mainBranch%"
-if ERRORLEVEL 1 (
+if %ERRORLEVEL% NEQ 0 (
     exit /b %ERRORLEVEL%
 )
+
 git pull
-if ERRORLEVEL 1 (
+if %ERRORLEVEL% NEQ 0 (
     exit /b %ERRORLEVEL%
 )
 
 git diff --binary --merge-base "%mainBranch%" "%prBranch%" | git apply --index
-if ERRORLEVEL 1 (
+if %ERRORLEVEL% NEQ 0 (
     exit /b %ERRORLEVEL%
 )
 
