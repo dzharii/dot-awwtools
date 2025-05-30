@@ -14,6 +14,7 @@ $COMMAND_HELP = "help"
 $COMMAND_SUBS = "subs"
 $COMMAND_VTT_TO_TXT = "vtt-to-txt"
 $COMMAND_DOWNLOAD = "download"
+$COMMAND_DOWNLOAD_PODCAST = "download-podcast"
 $COMMAND_DOWNLOAD_MP3 = "download-mp3"
 $COMMAND_VIDEO_TO_PDF = "video-to-pdf"
 
@@ -42,6 +43,11 @@ Commands:
       Options:
           -Url: The YouTube video URL (required for the 'download' command).
 
+    $($COMMAND_DOWNLOAD_PODCAST) -Url:
+      Download a YouTube video and create an entry in notes.md with metadata.
+      Options:
+          -Url: The YouTube video URL (required for the 'download-podcast' command).
+
     $($COMMAND_DOWNLOAD_MP3) -Url:
       Download a YouTube video as MP3.
       Options:
@@ -65,6 +71,131 @@ function Validate-Url {
     if ($InputUrl -notmatch "^https?://[a-zA-Z0-9\-.]+\.[a-zA-Z]{2,}(/\S*)?$") {
         Write-Host "Error: Invalid URL format provided: $($InputUrl)" -ForegroundColor Red
         exit 1
+    }
+}
+
+function Get-VideoMetadata {
+    param([string]$Url)
+    Write-Host "Step: Fetching video metadata..." -ForegroundColor Cyan
+
+    try {
+        $json = & yt-dlp.exe -j --no-warn --no-download "$Url" 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "Error: Failed to fetch video metadata (exit code $LASTEXITCODE)" -ForegroundColor Red
+            Write-Host $json -ForegroundColor Red
+            exit $LASTEXITCODE
+        }
+
+        $meta = $json | ConvertFrom-Json
+        $desc = $meta.description
+        if ($desc -and $desc.Length -gt 500) {
+            $desc = $desc.Substring(0, 500)
+            $desc = "$desc..."
+        }
+
+        $result = @{
+            Title = $meta.title
+            Description = $desc
+            Ext = $meta.ext
+        }
+        return $result
+    }
+    catch {
+        Write-Host "Error: Exception while fetching video metadata:" -ForegroundColor Red
+        Write-Host $_.Exception.Message -ForegroundColor Red
+        exit 1
+    }
+}
+
+function Get-SafeFileName {
+    param(
+        [string]$Title,
+        [string]$Ext
+    )
+    Write-Host "Step: Creating safe filename..." -ForegroundColor Cyan
+
+    # Handle null or empty title
+    if ([string]::IsNullOrWhiteSpace($Title)) {
+        $Title = "unnamed_video_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
+    }
+
+    # Handle null or empty extension
+    if ([string]::IsNullOrWhiteSpace($Ext)) {
+        $Ext = "mp4"
+    }
+
+    # Remove invalid filename characters (Windows-specific)
+    $invalidChars = [System.IO.Path]::GetInvalidFileNameChars()
+    $safeName = $Title
+    foreach ($char in $invalidChars) {
+        $safeName = $safeName.Replace($char, '_')
+    }
+
+    # Replace spaces with underscores
+    $safeName = $safeName -replace "\s+", "_"
+
+    # Limit length to avoid path issues
+    if ($safeName.Length -gt 100) {
+        $safeName = $safeName.Substring(0, 100)
+    }
+
+    return "$safeName.$Ext"
+}
+
+function Ensure-NotesEntry {
+    param(
+        [string]$Url,
+        [string]$Title,
+        [string]$Description
+    )
+    $path = Join-Path (Get-Location).Path "notes.md"
+    Write-Host "Step: Managing notes.md..." -ForegroundColor Cyan
+
+    # Handle null or empty title/description
+    if ([string]::IsNullOrWhiteSpace($Title)) {
+        $Title = "Untitled Video"
+    }
+
+    if ([string]::IsNullOrWhiteSpace($Description)) {
+        $Description = "No description available."
+    }
+
+    # Create notes.md if it doesn't exist
+    if (-not (Test-Path $path)) {
+        Write-Host "Creating new notes.md file" -ForegroundColor Yellow
+        New-Item -Path $path -ItemType File -Force | Out-Null
+    }
+
+    # Check if URL already exists in file
+    $exists = $false
+    $content = @()
+
+    if (Test-Path $path) {
+        $content = Get-Content -Path $path -ErrorAction SilentlyContinue
+        foreach ($line in $content) {
+            if ($line -like "*$Url*") {
+                $exists = $true
+                break
+            }
+        }
+    }
+
+    # Add new entry if URL doesn't exist
+    if ($exists) {
+        Write-Host "Entry for URL already exists in notes.md. Skipping." -ForegroundColor Yellow
+    }
+    else {
+        Write-Host "Adding new entry to notes.md" -ForegroundColor Green
+        $date = (Get-Date).ToString("yyyy-MM-dd")
+
+        $entry = @()
+        $entry += ""
+        $entry += "## [$Title]($Url) - $date"
+        $entry += ""
+        $entry += $Description
+        $entry += ""
+
+        Add-Content -Path $path -Value $entry -Encoding UTF8
     }
 }
 
@@ -244,6 +375,45 @@ switch ($Command.ToLower()) {
         }
     }
 
+    $COMMAND_DOWNLOAD_PODCAST {
+        # Validate URL
+        Validate-Url -InputUrl $Url
+
+        try {
+            # Get video metadata first
+            $meta = Get-VideoMetadata -Url $Url
+            if (-not $meta -or -not $meta.Title) {
+                throw "Failed to get video metadata"
+            }
+
+            # Create safe filename
+            $outFile = Get-SafeFileName -Title $meta.Title -Ext $meta.Ext
+
+            # Download the video
+            # Use quotes correctly for filenames that might contain spaces
+            $ytDlpCommand = "yt-dlp.exe -o `"$outFile`" --restrict-filenames `"$Url`""
+            Write-Host "Executing download-podcast command:" -ForegroundColor Cyan
+            Write-Host "$ytDlpCommand" -ForegroundColor Cyan
+
+            # Execute command with proper error handling
+            Invoke-Expression $ytDlpCommand
+            if ($LASTEXITCODE -ne 0) {
+                Write-Host "Error: yt-dlp command failed with exit code $LASTEXITCODE" -ForegroundColor Red
+                exit $LASTEXITCODE
+            }
+
+            Write-Host "Podcast downloaded successfully: $outFile" -ForegroundColor Green
+
+            # Update notes.md
+            Ensure-NotesEntry -Url $Url -Title $meta.Title -Description $meta.Description
+        }
+        catch {
+            Write-Host "Error: An exception occurred during podcast download:" -ForegroundColor Red
+            Write-Host $_.Exception.Message -ForegroundColor Red
+            exit 1
+        }
+    }
+
     $COMMAND_DOWNLOAD_MP3 {
         # Ensure that the URL parameter is provided and valid for 'download-mp3' command
         Validate-Url -InputUrl $Url
@@ -313,7 +483,6 @@ switch ($Command.ToLower()) {
 
         Write-Host "Executing ffmpeg command to extract slides with timestamps:" -ForegroundColor Cyan
         Write-Host "$($ffmpegCmd)" -ForegroundColor Cyan
-
         try {
             Invoke-Expression $ffmpegCmd
             if ($LASTEXITCODE -ne 0) {
@@ -330,11 +499,10 @@ switch ($Command.ToLower()) {
         }
 
         # Convert the extracted images into a single PDF using ImageMagick
-        $pdfOutput = Join-Path $outputFolder "slides.pdf"
+        $pdfOutput = Join-Path $outputFolder "slides.pdf"   Write-Host "Frames extracted successfully." -ForegroundColor Green
         $convertCmd = "magick convert `"$($outputFolder)\slide_*.jpg`" `"$($pdfOutput)`""
         Write-Host "Executing ImageMagick command to convert images to PDF:" -ForegroundColor Cyan
         Write-Host "$($convertCmd)" -ForegroundColor Cyan
-
         try {
             Invoke-Expression $convertCmd
             if ($LASTEXITCODE -ne 0) {
@@ -350,7 +518,6 @@ switch ($Command.ToLower()) {
             exit 1
         }
     }
-
 
     Default {
         Write-Host $("=" * 80) -ForegroundColor Red
