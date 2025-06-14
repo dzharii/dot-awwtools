@@ -46,6 +46,11 @@ function Format-MarkdownCodeBlock($content, $type) {
 
 
 $extensions = @(
+    "*.js"
+    "*.jsx"
+    "*.ts"
+    "*.tsx"
+    "*.html"
     "*.scala"
     "*.json"
     "*.sh"
