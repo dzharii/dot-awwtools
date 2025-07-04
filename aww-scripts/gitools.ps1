@@ -12,6 +12,7 @@ $COMMAND_HELP = "help"
 $COMMAND_SHOW_GIT_CHANGES = "show-git-changes"
 $COMMAND_DIFF_FROM_MASTER = "diff-from-master"
 $COMMAND_DIFF_FROM_MAIN = "diff-from-main"
+$COMMAND_DIFF_ALL_UNPUSHED = "diff-all-unpushed-changes"
 $COMMAND_REMOVE_UNTRACKED = "remove-untracked"
 $COMMAND_COPY_TO_CLIPBOARD_CURRENT_CHANGES_DIFF = "copy-to-clipboard-current-changes-diff"
 
@@ -40,6 +41,9 @@ Commands:
 
     $($COMMAND_DIFF_FROM_MAIN):
       Shows differences between the current branch and master
+
+    $($COMMAND_DIFF_ALL_UNPUSHED):
+      Shows a unified diff of all uncommitted changes (both staged and unstaged) compared to the last commit.
 
     $($COMMAND_REMOVE_UNTRACKED):
       Removes all untracked files and directories from the repository.
@@ -123,6 +127,11 @@ switch ($Command.ToLower()) {
     $COMMAND_DIFF_FROM_MAIN {
         # Display differences between the current branch and master
         git diff main..
+    }
+
+    $COMMAND_DIFF_ALL_UNPUSHED {
+        # Display all uncommitted changes in the working directory and staging area
+        git diff HEAD
     }
 
     $COMMAND_COPY_TO_CLIPBOARD_CURRENT_CHANGES_DIFF {
