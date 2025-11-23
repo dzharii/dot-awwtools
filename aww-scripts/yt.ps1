@@ -12,6 +12,7 @@ $ThisScriptFolderPath = Split-Path -Parent $MyInvocation.MyCommand.Definition
 # Define command constants
 $COMMAND_HELP = "help"
 $COMMAND_SUBS = "subs"
+$COMMAND_SUBS_TXT = "subs-txt"
 $COMMAND_VTT_TO_TXT = "vtt-to-txt"
 $COMMAND_DOWNLOAD = "download"
 $COMMAND_DOWNLOAD_PODCAST = "download-podcast"
@@ -37,6 +38,11 @@ Commands:
       Converts vtt file to plain text file with same name + ".txt"
       Options:
           -Url: vtt file path
+
+    $($COMMAND_SUBS_TXT) -Url:
+      Download subtitles for a specified YouTube URL and convert them to plain text.
+      Options:
+          -Url: The YouTube video URL (required).
 
     $($COMMAND_DOWNLOAD) -Url:
       Download a YouTube video.
@@ -270,6 +276,95 @@ function Get-FFmpegFontPath {
     return $null
 }
 
+function Invoke-CommandOrFail {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$CommandText,
+        [Parameter(Mandatory = $true)]
+        [string]$ErrorContext
+    )
+
+    Write-Host "Executing command:" -ForegroundColor Cyan
+    Write-Host $CommandText -ForegroundColor Cyan
+
+    try {
+        Invoke-Expression $CommandText
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "Error: $ErrorContext (exit code $LASTEXITCODE)" -ForegroundColor Red
+            exit $LASTEXITCODE
+        }
+    }
+    catch {
+        Write-Host "Error: $ErrorContext" -ForegroundColor Red
+        Write-Host $_.Exception.Message -ForegroundColor Red
+        exit 1
+    }
+}
+
+function Get-SubtitleSnapshot {
+    param(
+        [string]$Language = "en"
+    )
+
+    $snapshot = @{}
+    Get-ChildItem -Filter "*.$($Language).vtt" -File -ErrorAction SilentlyContinue | ForEach-Object {
+        $snapshot[$_.FullName] = $_.LastWriteTimeUtc
+    }
+    return $snapshot
+}
+
+function Get-NewSubtitleFiles {
+    param(
+        [hashtable]$BeforeSnapshot,
+        [string]$Language = "en"
+    )
+
+    $after = Get-ChildItem -Filter "*.$($Language).vtt" -File -ErrorAction SilentlyContinue
+    $newFiles = @()
+
+    foreach ($file in $after) {
+        if (-not $BeforeSnapshot.ContainsKey($file.FullName) -or $file.LastWriteTimeUtc -gt $BeforeSnapshot[$file.FullName]) {
+            $newFiles += $file.FullName
+        }
+    }
+
+    return $newFiles
+}
+
+function Convert-VttToTxt {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$InputFilePath
+    )
+
+    if (-not (Test-Path $InputFilePath)) {
+        throw "The vtt file path '$($InputFilePath)' does not exist."
+    }
+
+    $outputFilePath = "$($InputFilePath).txt"
+
+    $cleanedLines = @()
+    $previousLine = ""
+
+    foreach ($line in Get-Content -Path $InputFilePath) {
+        if ($line -match "^(WEBVTT|Kind:|Language:)") {
+            continue
+        }
+
+        $text = [regex]::Replace($line, "\d{2}:\d{2}:\d{2}\.\d{3} --> \d{2}:\d{2}:\d{2}\.\d{3}.*", "")
+        $text = [regex]::Replace($text, "<\d{2}:\d{2}:\d{2}\.\d{3}>|<.*?>", "")
+        $text = $text.Trim()
+
+        if ($text -ne "" -and $text -ne $previousLine) {
+            $cleanedLines += $text
+            $previousLine = $text
+        }
+    }
+
+    $cleanedLines | Set-Content -Path $outputFilePath
+    return $outputFilePath
+}
+
 
 switch ($Command.ToLower()) {
 
@@ -284,67 +379,53 @@ switch ($Command.ToLower()) {
         # Construct the yt-dlp command for downloading subtitles
         $ytDlpCommand = "yt-dlp.exe --write-subs --write-auto-sub --sub-langs `"en`" --skip-download -o `"%(title).200B.%(ext)s`" --restrict-filenames `"$($Url)`""
 
-        # Log the command for visibility
-        Write-Host "Executing yt-dlp command:"
-        Write-Host "$($ytDlpCommand)" -ForegroundColor Cyan
+        Invoke-CommandOrFail -CommandText $ytDlpCommand -ErrorContext "yt-dlp command failed while downloading subtitles."
+        Write-Host "Subtitles downloaded successfully." -ForegroundColor Green
+    }
 
+    $COMMAND_VTT_TO_TXT {
         try {
-            # Execute the yt-dlp command
-            Invoke-Expression $ytDlpCommand
-            if ($LASTEXITCODE -ne 0) {
-                Write-Host "Error: yt-dlp command failed with exit code $($LASTEXITCODE)" -ForegroundColor Red
-                exit $LASTEXITCODE
-            } else {
-                Write-Host "Subtitles downloaded successfully." -ForegroundColor Green
-            }
+            $outputFilePath = Convert-VttToTxt -InputFilePath $Url
+            Write-Host "Cleaned transcript saved to $($outputFilePath)"
         }
         catch {
-            Write-Host "Error: An exception occurred while executing yt-dlp command." -ForegroundColor Red
-            Write-Host "$($_.Exception.Message)" -ForegroundColor Red
+            Write-Host "Error: Failed to convert VTT to text." -ForegroundColor Red
+            Write-Host $_.Exception.Message -ForegroundColor Red
             exit 1
         }
     }
 
-    $COMMAND_VTT_TO_TXT {
-        if (!(Test-Path $Url)) {
-            throw "The vtt file path='$($Url)' does not exit."
+    $COMMAND_SUBS_TXT {
+        Validate-Url -InputUrl $Url
+        $language = "en"
+
+        $beforeSnapshot = Get-SubtitleSnapshot -Language $language
+        $ytDlpCommand = "yt-dlp.exe --write-subs --write-auto-sub --convert-subs vtt --sub-langs `"${language}`" --skip-download -o `"%(title).200B.%(ext)s`" --restrict-filenames `"$($Url)`""
+
+        Invoke-CommandOrFail -CommandText $ytDlpCommand -ErrorContext "yt-dlp command failed while downloading subtitles."
+
+        $newSubtitles = Get-NewSubtitleFiles -BeforeSnapshot $beforeSnapshot -Language $language
+        if (-not $newSubtitles -or $newSubtitles.Count -eq 0) {
+            Write-Host "Error: No new subtitle files were downloaded for language '$($language)'. Check the URL or language availability." -ForegroundColor Red
+            exit 1
         }
-        $inputFilePath = $Url
-        $outputFilePath = "$($inputFilePath).txt"
 
-        # Initialize an array to store the cleaned lines
-        $cleanedLines = @()
-        $previousLine = ""
-
-        # Read each line from the input file
-        foreach ($line in Get-Content -Path $inputFilePath) {
-            # Skip the 'WEBVTT' header or any metadata lines (e.g., 'Kind: captions')
-            if ($line -match "^(WEBVTT|Kind:|Language:)") {
-                continue
+        $convertedOutputs = @()
+        foreach ($subtitlePath in $newSubtitles) {
+            try {
+                $convertedOutputs += Convert-VttToTxt -InputFilePath $subtitlePath
             }
-
-            # Remove timestamps (format: '00:00:00.520 --> 00:00:03.350 align:start position:0%')
-            $line = [regex]::Replace($line, "\d{2}:\d{2}:\d{2}\.\d{3} --> \d{2}:\d{2}:\d{2}\.\d{3}.*", "")
-
-            # Remove inline timestamps and tags (format: '<00:00:00.680><c>...</c>')
-            $line = [regex]::Replace($line, "<\d{2}:\d{2}:\d{2}\.\d{3}>|<.*?>", "")
-
-            # Trim leading and trailing whitespace
-            $line = $line.Trim()
-
-            # Check if the line is non-empty and different from the previous line
-            if ($line -ne "" -and $line -ne $previousLine) {
-                # Add the line to the output if it's unique in sequence
-                $cleanedLines += $line
-                # Update the previous line variable to the current line
-                $previousLine = $line
+            catch {
+                Write-Host "Error: Failed to convert subtitle '$($subtitlePath)' to text." -ForegroundColor Red
+                Write-Host $_.Exception.Message -ForegroundColor Red
+                exit 1
             }
         }
 
-        # Write the cleaned unique lines to the output file
-        $cleanedLines | Set-Content -Path $outputFilePath
-
-        Write-Host "Cleaned transcript saved to $($outputFilePath)"
+        Write-Host "Subtitles converted to text files:" -ForegroundColor Green
+        foreach ($output in $convertedOutputs) {
+            Write-Host $output -ForegroundColor Green
+        }
     }
 
     $COMMAND_DOWNLOAD {
@@ -354,25 +435,8 @@ switch ($Command.ToLower()) {
         # Construct the yt-dlp command for downloading the video
         $ytDlpCommand = "yt-dlp.exe -o `"%(title)s.%(ext)s`" --restrict-filenames `"$($Url)`""
 
-        # Log the command for visibility
-        Write-Host "Executing yt-dlp command to download video:"
-        Write-Host "$($ytDlpCommand)" -ForegroundColor Cyan
-
-        try {
-            # Execute the yt-dlp command
-            Invoke-Expression $ytDlpCommand
-            if ($LASTEXITCODE -ne 0) {
-                Write-Host "Error: yt-dlp command failed with exit code $($LASTEXITCODE)" -ForegroundColor Red
-                exit $LASTEXITCODE
-            } else {
-                Write-Host "Video downloaded successfully." -ForegroundColor Green
-            }
-        }
-        catch {
-            Write-Host "Error: An exception occurred while executing yt-dlp command." -ForegroundColor Red
-            Write-Host "$($_.Exception.Message)" -ForegroundColor Red
-            exit 1
-        }
+        Invoke-CommandOrFail -CommandText $ytDlpCommand -ErrorContext "yt-dlp command failed while downloading the video."
+        Write-Host "Video downloaded successfully." -ForegroundColor Green
     }
 
     $COMMAND_DOWNLOAD_PODCAST {
@@ -421,25 +485,8 @@ switch ($Command.ToLower()) {
         # Construct the yt-dlp command for downloading the video as MP3
         $ytDlpCommand = "yt-dlp.exe -x --audio-format mp3 -o `"%(title)s.%(ext)s`" --restrict-filenames `"$($Url)`""
 
-        # Log the command for visibility
-        Write-Host "Executing yt-dlp command to download MP3:"
-        Write-Host "$($ytDlpCommand)" -ForegroundColor Cyan
-
-        try {
-            # Execute the yt-dlp command
-            Invoke-Expression $ytDlpCommand
-            if ($LASTEXITCODE -ne 0) {
-                Write-Host "Error: yt-dlp command failed with exit code $($LASTEXITCODE)" -ForegroundColor Red
-                exit $LASTEXITCODE
-            } else {
-                Write-Host "MP3 downloaded successfully." -ForegroundColor Green
-            }
-        }
-        catch {
-            Write-Host "Error: An exception occurred while executing yt-dlp command." -ForegroundColor Red
-            Write-Host "$($_.Exception.Message)" -ForegroundColor Red
-            exit 1
-        }
+        Invoke-CommandOrFail -CommandText $ytDlpCommand -ErrorContext "yt-dlp command failed while downloading MP3."
+        Write-Host "MP3 downloaded successfully." -ForegroundColor Green
     }
 
     $COMMAND_VIDEO_TO_PDF {
