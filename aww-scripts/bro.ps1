@@ -9,21 +9,20 @@ $ErrorActionPreference = "Stop"
 # User configurable settings
 # -----------------------------------------------------------------------------
 
-# Enable or disable console logging for debugging.
-$script:EnableLogging = $true
+$script:EnableLogging       = $true
 
-# Preferred window size in pixels.
 $script:BrowserWindowWidth  = 1100
 $script:BrowserWindowHeight = 800
 
-# Preferred window position in pixels (top left corner).
-# Set to $null to let the browser decide.
-$script:BrowserWindowX = 200
-$script:BrowserWindowY = 150
+$script:BrowserWindowX      = 200
+$script:BrowserWindowY      = 150
 
-# Use "app" mode for Chromium based browsers (Chrome, Edge) when opening URLs.
-# This gives a minimal window without standard browser UI.
-$script:UseAppMode = $true
+# Default home page when no query or url is given
+$script:DefaultHomeUrl      = "https://www.bing.com/"
+
+# Default search engine command for unknown input
+# Valid values here: "bing", "ggl", "ddg"
+$script:DefaultSearchEngine = "bing"
 
 # -----------------------------------------------------------------------------
 # Logging helpers
@@ -33,12 +32,7 @@ function Write-Log {
     param(
         [string]$Message
     )
-
-    # Write a simple timestamped log line when logging is enabled.
-    if (-not $script:EnableLogging) {
-        return
-    }
-
+    if (-not $script:EnableLogging) { return }
     $timestamp = Get-Date -Format "HH:mm:ss"
     Write-Host "[bro $timestamp] $Message"
 }
@@ -52,10 +46,7 @@ function Encode-UrlComponent {
         [string]$Value
     )
 
-    # Encode a string for safe use as a URL query parameter.
-    if ($null -eq $Value -or $Value -eq "") {
-        return ""
-    }
+    if ($null -eq $Value -or $Value -eq "") { return "" }
 
     try {
         Add-Type -AssemblyName System.Web -ErrorAction SilentlyContinue | Out-Null
@@ -63,7 +54,6 @@ function Encode-UrlComponent {
             return [System.Web.HttpUtility]::UrlEncode($Value)
         }
     } catch {
-        # Ignore and fall back to EscapeDataString.
     }
 
     return [System.Uri]::EscapeDataString($Value)
@@ -75,43 +65,30 @@ function Build-SearchUrl {
         [string]$Query
     )
 
-    # Build a search URL based on a known command and query text.
     $q = $Query
-    if ($null -eq $q) {
-        $q = ""
-    }
+    if ($null -eq $q) { $q = "" }
 
     $encoded = Encode-UrlComponent -Value $q
 
     switch ($Command.ToLower()) {
         "ggl" {
-            if ([string]::IsNullOrWhiteSpace($q)) {
-                return "https://www.google.com/"
-            }
+            if ([string]::IsNullOrWhiteSpace($q)) { return "https://www.google.com/" }
             return ("https://www.google.com/search?q={0}" -f $encoded)
         }
         "ddg" {
-            if ([string]::IsNullOrWhiteSpace($q)) {
-                return "https://duckduckgo.com/"
-            }
+            if ([string]::IsNullOrWhiteSpace($q)) { return "https://duckduckgo.com/" }
             return ("https://duckduckgo.com/?q={0}" -f $encoded)
         }
         "bing" {
-            if ([string]::IsNullOrWhiteSpace($q)) {
-                return "https://www.bing.com/"
-            }
+            if ([string]::IsNullOrWhiteSpace($q)) { return "https://www.bing.com/" }
             return ("https://www.bing.com/search?q={0}" -f $encoded)
         }
         "gpt" {
-            if ([string]::IsNullOrWhiteSpace($q)) {
-                return "https://chatgpt.com/"
-            }
+            if ([string]::IsNullOrWhiteSpace($q)) { return "https://chatgpt.com/" }
             return ("https://chatgpt.com/?q={0}" -f $encoded)
         }
         default {
-            if ([string]::IsNullOrWhiteSpace($q)) {
-                return $null
-            }
+            if ([string]::IsNullOrWhiteSpace($q)) { return $null }
             return $q
         }
     }
@@ -123,17 +100,53 @@ function Get-JoinedText {
         [int]$StartIndex = 0
     )
 
-    # Join items from StartIndex into a single space separated string.
-    if (-not $Items) {
-        return ""
-    }
-
-    if ($StartIndex -lt 0 -or $StartIndex -ge $Items.Count) {
-        return ""
-    }
+    if (-not $Items) { return "" }
+    if ($StartIndex -lt 0 -or $StartIndex -ge $Items.Count) { return "" }
 
     $slice = $Items[$StartIndex..($Items.Count - 1)]
     return ($slice -join " ").Trim()
+}
+
+function Quote-Argument {
+    param(
+        [string]$Arg
+    )
+
+    if ($null -eq $Arg -or $Arg -eq "") {
+        return '""'
+    }
+
+    if ($Arg -match '\s|"') {
+        $escaped = $Arg -replace '"', '\"'
+        return '"' + $escaped + '"'
+    }
+
+    return $Arg
+}
+
+function Looks-LikeDomain {
+    param(
+        [string]$Value
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Value)) { return $false }
+
+    $v = $Value.Trim()
+
+    # If it starts with a scheme, treat as url
+    if ($v -match '^[a-zA-Z][a-zA-Z0-9+\-.]*://') {
+        return $true
+    }
+
+    # No spaces allowed for domain detection
+    if ($v -match '\s') { return $false }
+
+    # First char letter, must contain at least one dot
+    if ($v -notmatch '^[A-Za-z][A-Za-z0-9\.-]*\.[A-Za-z0-9\-]+$') {
+        return $false
+    }
+
+    return $true
 }
 
 # -----------------------------------------------------------------------------
@@ -145,7 +158,6 @@ function Get-ExecutablePathFromCommand {
         [string]$Command
     )
 
-    # Extract executable path from a shell command string.
     Write-Log "Parsing executable path from command: $Command"
 
     $exe = $null
@@ -162,11 +174,10 @@ function Get-ExecutablePathFromCommand {
 function Get-DefaultBrowserExecutable {
     param()
 
-    # Resolve the default browser executable using Windows registry.
     Write-Log "Resolving default browser executable from registry."
 
     $protocol = "https"
-    $progId = $null
+    $progId   = $null
 
     $userChoiceKey = "HKCU:\Software\Microsoft\Windows\Shell\Associations\UrlAssociations\$protocol\UserChoice"
     if (Test-Path $userChoiceKey) {
@@ -179,23 +190,23 @@ function Get-DefaultBrowserExecutable {
     }
 
     if (-not $progId) {
-        Write-Log "UserChoice ProgId not found, falling back to HKCR association."
+        Write-Log "UserChoice ProgId not found, falling back to HKEY_CLASSES_ROOT protocol association."
 
         try {
-            $command = (Get-Item "HKCR:\$protocol\shell\open\command" -ErrorAction Stop).GetValue($null)
+            $command = (Get-Item "Registry::HKEY_CLASSES_ROOT\$protocol\shell\open\command" -ErrorAction Stop).GetValue($null)
             if (-not $command) {
                 throw "Empty command for protocol $protocol."
             }
             $exe = Get-ExecutablePathFromCommand -Command $command
             return $exe
         } catch {
-            throw "Could not determine default browser command from HKCR: $($_.Exception.Message)"
+            throw "Could not determine default browser command from HKEY_CLASSES_ROOT: $($_.Exception.Message)"
         }
     }
 
     $cmdKey = "HKCU:\Software\Classes\$progId\shell\open\command"
     if (-not (Test-Path $cmdKey)) {
-        $cmdKey = "HKCR:\$progId\shell\open\command"
+        $cmdKey = "Registry::HKEY_CLASSES_ROOT\$progId\shell\open\command"
     }
 
     try {
@@ -214,96 +225,76 @@ function Get-BrowserKind {
         [string]$ExecutablePath
     )
 
-    # Determine browser family based on executable filename.
     $lower = $ExecutablePath.ToLowerInvariant()
     Write-Log "Determining browser kind for path '$ExecutablePath'"
 
-    if ($lower -like "*msedge.exe") {
-        return "edge"
-    }
-    if ($lower -like "*chrome.exe") {
-        return "chrome"
-    }
-    if ($lower -like "*firefox.exe") {
-        return "firefox"
-    }
+    if ($lower -like "*msedge.exe")   { return "edge" }
+    if ($lower -like "*chrome.exe")   { return "chrome" }
+    if ($lower -like "*firefox.exe")  { return "firefox" }
 
     return "unknown"
 }
 
-function Build-BrowserArguments {
+function Build-BrowserArgumentList {
     param(
         [string]$BrowserKind,
         [string]$Url,
         [bool]$IsPrivate
     )
 
-    # Build command line arguments for known browser families.
     Write-Log "Building browser arguments. Kind='$BrowserKind' Url='$Url' Private=$IsPrivate"
 
-    $args = New-Object System.Collections.Generic.List[string]
+    $list = New-Object System.Collections.Generic.List[string]
 
     switch ($BrowserKind.ToLowerInvariant()) {
         "chrome" {
-            $args.Add("--new-window")
-            if ($IsPrivate) {
-                $args.Add("--incognito")
-            }
+            $list.Add("--new-window")
+            if ($IsPrivate) { $list.Add("--incognito") }
 
             if ($script:BrowserWindowWidth -and $script:BrowserWindowHeight) {
-                $args.Add("--window-size=$($script:BrowserWindowWidth),$($script:BrowserWindowHeight)")
+                $list.Add("--window-size=$($script:BrowserWindowWidth),$($script:BrowserWindowHeight)")
             }
 
             if ($null -ne $script:BrowserWindowX -and $null -ne $script:BrowserWindowY) {
-                $args.Add("--window-position=$($script:BrowserWindowX),$($script:BrowserWindowY)")
+                $list.Add("--window-position=$($script:BrowserWindowX),$($script:BrowserWindowY)")
             }
 
             if ($Url) {
-                if ($script:UseAppMode) {
-                    $args.Add("--app=""$Url""")
-                } else {
-                    $args.Add($Url)
-                }
+                $list.Add($Url)
             }
         }
         "edge" {
-            $args.Add("--new-window")
-            if ($IsPrivate) {
-                $args.Add("--inprivate")
-            }
+            $list.Add("--new-window")
+            if ($IsPrivate) { $list.Add("--inprivate") }
 
             if ($script:BrowserWindowWidth -and $script:BrowserWindowHeight) {
-                $args.Add("--window-size=$($script:BrowserWindowWidth),$($script:BrowserWindowHeight)")
+                $list.Add("--window-size=$($script:BrowserWindowWidth),$($script:BrowserWindowHeight)")
             }
 
             if ($null -ne $script:BrowserWindowX -and $null -ne $script:BrowserWindowY) {
-                $args.Add("--window-position=$($script:BrowserWindowX),$($script:BrowserWindowY)")
+                $list.Add("--window-position=$($script:BrowserWindowX),$($script:BrowserWindowY)")
             }
 
             if ($Url) {
-                if ($script:UseAppMode) {
-                    $args.Add("--app=""$Url""")
-                } else {
-                    $args.Add($Url)
-                }
+                $list.Add($Url)
             }
         }
         "firefox" {
             if ($IsPrivate) {
-                $args.Add("-private-window")
+                $list.Add("-private-window")
             } else {
-                $args.Add("-new-window")
+                $list.Add("-new-window")
             }
 
             if ($script:BrowserWindowWidth -and $script:BrowserWindowHeight) {
-                $args.Add("-width")
-                $args.Add("$($script:BrowserWindowWidth)")
-                $args.Add("-height")
-                $args.Add("$($script:BrowserWindowHeight)")
+                $list.Add("-width")
+                $list.Add("$($script:BrowserWindowWidth)")
+                $list.Add("-height")
+                $list.Add("$($script:BrowserWindowHeight)")
             }
 
             if ($Url) {
-                $args.Add($Url)
+                $list.Add($Url)
             }
         }
         default {
@@ -311,11 +302,9 @@ function Build-BrowserArguments {
         }
     }
 
-    if ($args.Count -eq 0) {
-        return $null
-    }
+    if ($list.Count -eq 0) { return $null }
 
-    return $args.ToArray()
+    return $list.ToArray()
 }
 
 # -----------------------------------------------------------------------------
@@ -328,7 +317,6 @@ function Open-BrowserWindow {
         [bool]$IsPrivate
     )
 
-    # Open a new browser window with optional URL and private mode.
     Write-Log "Preparing to open browser. Url='$Url' Private=$IsPrivate"
 
     $browserExe = $null
@@ -338,34 +326,35 @@ function Open-BrowserWindow {
         Write-Log ("Failed to resolve default browser executable: {0}" -f $_.Exception.Message)
     }
 
+    $targetUrl =
+        if ([string]::IsNullOrWhiteSpace($Url)) {
+            $script:DefaultHomeUrl
+        } else {
+            $Url
+        }
+
     if (-not $browserExe -or -not (Test-Path $browserExe)) {
         Write-Log "Browser executable not found, falling back to Start-Process with URL only."
-        if ($Url) {
-            Start-Process $Url | Out-Null
-        } else {
-            Start-Process "about:blank" | Out-Null
-        }
+        Write-Log "Fallback URL: $targetUrl"
+        Start-Process $targetUrl | Out-Null
         return
     }
 
     $kind = Get-BrowserKind -ExecutablePath $browserExe
     Write-Log "Browser kind detected: $kind"
 
-    $args = Build-BrowserArguments -BrowserKind $kind -Url $Url -IsPrivate:$IsPrivate
-    if (-not $args) {
-        Write-Log "No specific arguments built; starting browser with URL only."
-        if ($Url) {
-            Write-Log ("Executing: `"{0}`" {1}" -f $browserExe, $Url)
-            Start-Process -FilePath $browserExe -ArgumentList $Url | Out-Null
-        } else {
-            Write-Log ("Executing: `"{0}`"" -f $browserExe)
-            Start-Process -FilePath $browserExe | Out-Null
-        }
+    $argArray = Build-BrowserArgumentList -BrowserKind $kind -Url $targetUrl -IsPrivate:$IsPrivate
+    if (-not $argArray) {
+        Write-Log "No specific arguments built; starting browser executable directly."
+        $displayArg = Quote-Argument $targetUrl
+        Write-Log ("Executing: `"{0}`" {1}" -f $browserExe, $displayArg)
+        Start-Process -FilePath $browserExe -ArgumentList @($targetUrl) | Out-Null
         return
     }
 
-    Write-Log ("Executing: `"{0}`" {1}" -f $browserExe, ($args -join " "))
-    Start-Process -FilePath $browserExe -ArgumentList $args | Out-Null
+    $displayArgs = $argArray | ForEach-Object { Quote-Argument $_ }
+    Write-Log ("Executing: `"{0}`" {1}" -f $browserExe, ($displayArgs -join " "))
+    Start-Process -FilePath $browserExe -ArgumentList $argArray | Out-Null
 }
 
 # -----------------------------------------------------------------------------
@@ -375,7 +364,6 @@ function Open-BrowserWindow {
 function Write-Help {
     param()
 
-    # Print usage information for bro.ps1.
     $help = @"
 bro.ps1 - disposable browser window helper
 
@@ -387,8 +375,8 @@ Usage:
     Show this help text only.
 
   bro [text...]
-    Open a new window and pass the joined text to the browser. The browser will
-    interpret it as a URL or a search string.
+    If text looks like a single domain, open it directly.
+    Otherwise open the default search engine with the text as query.
 
 Special commands:
   bro gpt  <query>
@@ -410,11 +398,14 @@ Special commands:
     Same as above commands, but using private mode when supported by the browser.
 
 Examples:
+  bro example
+    Open Bing search for "example".
+
   bro example.com
+    Open example.com directly.
+
   bro where are my socks
-  bro ggl PowerShell Start-Process
-  bro gpt this is my question
-  bro p ggl disposable browser window
+    Open Bing search for "where are my socks".
 "@
 
     Write-Host $help
@@ -446,12 +437,12 @@ if ($Args.Count -gt 0 -and $Args[0]) {
 
 if ($Args.Count -le $index) {
     Open-BrowserWindow -Url $null -IsPrivate:$isPrivate
-    Write-Log "Only private flag provided; opened blank private window."
+    Write-Log "Only private flag provided; opened home private window."
     exit 0
 }
 
-$command       = $Args[$index]
-$commandLower  = $command.ToLower()
+$command      = $Args[$index]
+$commandLower = $command.ToLower()
 Write-Log "Primary command token: '$commandLower'. Private=$isPrivate"
 
 if ($commandLower -eq "help") {
@@ -469,13 +460,27 @@ if ($commandLower -in @("gpt", "ggl", "ddg", "bing")) {
     exit 0
 }
 
-$raw = Get-JoinedText -Items $Args -StartIndex $index
-Write-Log "No known command. Treating as raw text '$raw'."
+$remaining = $Args[$index..($Args.Count - 1)]
+Write-Log ("Unknown primary command; remaining tokens: '{0}'." -f ($remaining -join " "))
 
-if ([string]::IsNullOrWhiteSpace($raw)) {
-    Open-BrowserWindow -Url $null -IsPrivate:$isPrivate
-    Write-Log "Raw text empty; opened blank window."
-} else {
-    Open-BrowserWindow -Url $raw -IsPrivate:$isPrivate
-    Write-Log "Opened browser with raw text as URL or search string."
+if ($remaining.Count -eq 1) {
+    $token = $remaining[0]
+    if (Looks-LikeDomain $token) {
+        Write-Log "Single unknown token looks like domain; opening directly."
+        Open-BrowserWindow -Url $token -IsPrivate:$isPrivate
+        Write-Log "Opened browser with domain-like token."
+        exit 0
+    }
+
+    Write-Log "Single unknown token; using default search engine '$script:DefaultSearchEngine'."
+    $url = Build-SearchUrl -Command $script:DefaultSearchEngine -Query $token
+    Open-BrowserWindow -Url $url -IsPrivate:$isPrivate
+    Write-Log "Opened browser with default search for single token."
+    exit 0
 }
+
+$queryText = ($remaining -join " ")
+Write-Log "Multiple tokens with unknown command; using default search engine '$script:DefaultSearchEngine' with query '$queryText'."
+$searchUrl = Build-SearchUrl -Command $script:DefaultSearchEngine -Query $queryText
+Open-BrowserWindow -Url $searchUrl -IsPrivate:$isPrivate
+Write-Log "Opened browser with default search for multi word query."
