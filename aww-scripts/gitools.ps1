@@ -22,6 +22,7 @@ $COMMAND_WHAT_CHANGES_ARE_NEW = "what-changes-are-new-in-my-branch"
 $COMMAND_WHAT_CHANGES_ARE_IN_MASTER_NOT_MY_BRANCH = "what-changes-are-in-master-but-not-in-my-branch"
 $COMMAND_MOVE_FILES_TO_OTHER_BRANCH = "move-files-to-other-branch"
 $COMMAND_CHECKOUT_PR = "checkout-pr"
+$COMMAND_SHALLOW_CLONE = "shallow-clone"
 
 
 $HELP_MESSAGE = @"
@@ -69,6 +70,10 @@ Commands:
       Checks out the specified PR branch and prepares it for review.
       Sets up the changes from the PR as unstaged modifications against the main branch.
       This allows reviewing the exact changes the PR introduces.
+
+    $($COMMAND_SHALLOW_CLONE) <repo_url> [<target_name>]:
+      Clones a repo with depth 1, single-branch, and no tags.
+      If <target_name> is omitted, it uses <owner>__<repo> derived from the URL.
 "@
 
 function Get-MasterOrMainBranchName {
@@ -99,6 +104,42 @@ function Ensure-CleanWorkingDirectory {
     if ($status) {
         throw "Working directory is not clean. Please commit or stash your changes before checking out a PR."
     }
+}
+
+function Test-RepoLike {
+    param(
+        [string]$value
+    )
+
+    if (-not $value) { return $false }
+    return ($value -match "^[a-zA-Z][a-zA-Z0-9+.-]*://") -or ($value -match "^[^\\s@]+@[^\\s:]+:")
+}
+
+function Get-ShallowCloneTargetName {
+    param(
+        [string]$repoUrl
+    )
+
+    if (-not $repoUrl) { return $null }
+
+    $clean = $repoUrl.Trim()
+    $clean = $clean -replace "\\", "/"
+    $clean = $clean -replace "/+$", ""
+    $clean = $clean -replace "\.git$", ""
+    $clean = $clean -replace ":", "/"
+
+    $segments = $clean -split "/"
+    $segments = $segments | Where-Object { $_ -ne "" }
+
+    if ($segments.Count -ge 2) {
+        return "$($segments[-2])__$($segments[-1])"
+    }
+
+    if ($segments.Count -eq 1) {
+        return $segments[0]
+    }
+
+    return $null
 }
 
 switch ($Command.ToLower()) {
@@ -268,6 +309,41 @@ switch ($Command.ToLower()) {
             Write-Host "Error in checkout-pr: $_" -ForegroundColor Red
             exit 1
         }
+    }
+
+    $COMMAND_SHALLOW_CLONE {
+        $repoUrl = $null
+        $targetName = $null
+
+        if ($PSBoundParameters.ContainsKey('Name')) {
+            $repoUrl = $Name
+            if ($args.Count -gt 0) { $targetName = $args[0] }
+
+            if ($targetName -and -not (Test-RepoLike -value $repoUrl) -and (Test-RepoLike -value $targetName)) {
+                $repoUrl = $targetName
+                $targetName = $Name
+            }
+        } elseif ($args.Count -gt 0) {
+            $repoUrl = $args[0]
+            if ($args.Count -gt 1) { $targetName = $args[1] }
+        }
+
+        if (-not $repoUrl) {
+            Write-Host "Error: <repo_url> is required for '$COMMAND_SHALLOW_CLONE'." -ForegroundColor Red
+            exit 1
+        }
+
+        if (-not $targetName) {
+            $targetName = Get-ShallowCloneTargetName -repoUrl $repoUrl
+        }
+
+        if (-not $targetName) {
+            Write-Host "Error: Unable to derive a target name from '$repoUrl'. Provide <target_name> explicitly." -ForegroundColor Red
+            exit 1
+        }
+
+        Write-Host "Shallow cloning '$repoUrl' into '$targetName'..." -ForegroundColor Cyan
+        git clone --depth 1 --single-branch --no-tags $repoUrl $targetName
     }
 
     Default {
