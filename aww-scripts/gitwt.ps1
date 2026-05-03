@@ -17,6 +17,8 @@ $SCRIPT:COMMAND_HELP = "help"
 $SCRIPT:COMMAND_NEW  = "new"
 $SCRIPT:COMMAND_LIST = "list"
 $SCRIPT:COMMAND_DOC  = "doc"
+$SCRIPT:COMMAND_GO   = "go"
+$SCRIPT:COMMAND_CD   = "cd"
 
 $SCRIPT:DOC_FILE_NAME = "gitwt.md.html"
 $SCRIPT:InvocationLine = $SCRIPT:COMMAND_NAME
@@ -814,6 +816,72 @@ function Get-Worktrees {
     return $items.ToArray()
 }
 
+function Get-LatestGitWTWorktree {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object]$Context,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$LogCommand
+    )
+
+    $worktrees = @(Get-Worktrees -LogCommand:$LogCommand)
+    $candidates = New-Object System.Collections.Generic.List[object]
+
+    $escapedRepoName = [regex]::Escape($Context.RepoName)
+    $pattern = "^" + $escapedRepoName + "-wt-(\d{4}-\d{2}-\d{2}T\d{2}-\d{2})$"
+
+    foreach ($wt in $worktrees) {
+        if ($wt.IsCurrent) {
+            continue
+        }
+
+        if (-not (Test-Path -LiteralPath $wt.Path)) {
+            continue
+        }
+
+        $leafName = Split-Path -Leaf $wt.Path
+        $match = [regex]::Match($leafName, $pattern)
+
+        if (-not $match.Success) {
+            continue
+        }
+
+        $timestampText = $match.Groups[1].Value
+        [DateTime]$timestamp = [DateTime]::MinValue
+
+        $parsed = [DateTime]::TryParseExact(
+            $timestampText,
+            "yyyy-MM-ddTHH-mm",
+            [System.Globalization.CultureInfo]::InvariantCulture,
+            [System.Globalization.DateTimeStyles]::None,
+            [ref]$timestamp
+        )
+
+        if (-not $parsed) {
+            continue
+        }
+
+        $candidate = [pscustomobject]@{
+            Worktree  = $wt
+            Timestamp = $timestamp
+            Path      = $wt.Path
+        }
+
+        [void]$candidates.Add($candidate)
+    }
+
+    if ($candidates.Count -eq 0) {
+        return $null
+    }
+
+    $latest = $candidates |
+        Sort-Object -Property Timestamp, Path -Descending |
+        Select-Object -First 1
+
+    return $latest.Worktree
+}
+
 function Invoke-WorktreePruneSafely {
     param(
         [Parameter(Mandatory = $false)]
@@ -1046,15 +1114,23 @@ function Write-Help {
 
     Write-Section "Commands"
 
-    if ($context) {
-        $newCommand = $SCRIPT:COMMAND_NAME + " " + $SCRIPT:COMMAND_NEW
-        $listCommand = $SCRIPT:COMMAND_NAME + " " + $SCRIPT:COMMAND_LIST
-        $docCommand = $SCRIPT:COMMAND_NAME + " " + $SCRIPT:COMMAND_DOC
+    $newCommand = $SCRIPT:COMMAND_NAME + " " + $SCRIPT:COMMAND_NEW
+    $listCommand = $SCRIPT:COMMAND_NAME + " " + $SCRIPT:COMMAND_LIST
+    $docCommand = $SCRIPT:COMMAND_NAME + " " + $SCRIPT:COMMAND_DOC
+    $goCommand = $SCRIPT:COMMAND_NAME + " " + $SCRIPT:COMMAND_GO
+    $cdCommand = $SCRIPT:COMMAND_NAME + " " + $SCRIPT:COMMAND_CD
 
+    if ($context) {
         $fromDetail = "From:    " + $context.BranchDisplay
         $targetDetail = "Target:  " + $context.TargetDisplay
 
         Write-CommandHelp -CommandText $newCommand -Description "Create a new sibling worktree" -Details @($fromDetail, $targetDetail)
+        Write-Blank
+
+        Write-CommandHelp -CommandText $goCommand -Description "Go to the latest GitWT worktree"
+        Write-Blank
+
+        Write-CommandHelp -CommandText $cdCommand -Description "Alias for go"
         Write-Blank
 
         Write-CommandHelp -CommandText $listCommand -Description "Show worktrees for this repository"
@@ -1063,11 +1139,13 @@ function Write-Help {
         Write-CommandHelp -CommandText $docCommand -Description "Open the local Git worktree reference"
     }
     else {
-        $newCommand = $SCRIPT:COMMAND_NAME + " " + $SCRIPT:COMMAND_NEW
-        $listCommand = $SCRIPT:COMMAND_NAME + " " + $SCRIPT:COMMAND_LIST
-        $docCommand = $SCRIPT:COMMAND_NAME + " " + $SCRIPT:COMMAND_DOC
-
         Write-CommandHelp -CommandText $newCommand -Description "Create a new sibling worktree" -Details @("Requires a Git repository")
+        Write-Blank
+
+        Write-CommandHelp -CommandText $goCommand -Description "Go to the latest GitWT worktree" -Details @("Requires a Git repository")
+        Write-Blank
+
+        Write-CommandHelp -CommandText $cdCommand -Description "Alias for go" -Details @("Requires a Git repository")
         Write-Blank
 
         Write-CommandHelp -CommandText $listCommand -Description "Show worktrees for this repository" -Details @("Requires a Git repository")
@@ -1182,6 +1260,53 @@ function New-Worktree {
     Write-WorktreeList -Worktrees $worktrees
 }
 
+function Go-ToLatestWorktree {
+    $context = Get-RepositoryContext
+
+    if (-not $context) {
+        throw $SCRIPT:COMMAND_NAME + " must be run inside a Git repository for this command."
+    }
+
+    Write-CommandHeader -CommandLine $SCRIPT:InvocationLine
+    Write-Blank
+
+    Write-Field -Name "Repository" -Value $context.RepoName
+    Write-Field -Name "Root" -Value $context.Root -Kind "muted"
+
+    Write-Section "Commands"
+    Write-WrappedLine -Indent "" -Text "Refreshing worktree metadata..." -Kind "muted"
+    $null = Invoke-WorktreePruneSafely -LogCommand
+
+    Write-Blank
+    Write-WrappedLine -Indent "" -Text "Reading worktrees..." -Kind "muted"
+    $latest = Get-LatestGitWTWorktree -Context $context -LogCommand
+
+    if (-not $latest) {
+        throw "No GitWT-created worktree was found for repository: " + $context.RepoName
+    }
+
+    Write-Blank
+    Write-Field -Name "Selected" -Value $latest.Path -Kind "ok"
+    Write-Field -Name "Branch" -Value $latest.Branch
+
+    Write-Blank
+    Write-WrappedLine -Indent "" -Text "Changing directory inside this script process..." -Kind "muted"
+
+    $setLocationCommand = ConvertTo-CommandLine -Executable "Set-Location" -Arguments @($latest.Path)
+    Write-CommandLog -CommandLine $setLocationCommand
+
+    Set-Location -LiteralPath $latest.Path
+
+    Write-Blank
+    Write-Field -Name "Current" -Value (Get-Location).Path -Kind "ok"
+
+    Write-Blank
+    Write-WrappedLine -Indent "" -Text "To change the current directory in your interactive shell, run:" -Kind "warn"
+
+    $cdCommand = "cd " + (ConvertTo-ShellQuotedArg -Value $latest.Path)
+    Write-Host ("  " + (Format-Command -Text $cdCommand))
+}
+
 function Open-Doc {
     $docPath = Join-Path $SCRIPT:ScriptFolderPath $SCRIPT:DOC_FILE_NAME
 
@@ -1270,6 +1395,16 @@ try {
         $SCRIPT:InvocationLine = $SCRIPT:COMMAND_NAME + " " + $SCRIPT:COMMAND_LIST
         Assert-GitAvailable
         Write-List
+    }
+    elseif ($normalizedCommand -eq $SCRIPT:COMMAND_GO) {
+        $SCRIPT:InvocationLine = $SCRIPT:COMMAND_NAME + " " + $SCRIPT:COMMAND_GO
+        Assert-GitAvailable
+        Go-ToLatestWorktree
+    }
+    elseif ($normalizedCommand -eq $SCRIPT:COMMAND_CD) {
+        $SCRIPT:InvocationLine = $SCRIPT:COMMAND_NAME + " " + $SCRIPT:COMMAND_CD
+        Assert-GitAvailable
+        Go-ToLatestWorktree
     }
     elseif ($normalizedCommand -eq $SCRIPT:COMMAND_DOC) {
         $SCRIPT:InvocationLine = $SCRIPT:COMMAND_NAME + " " + $SCRIPT:COMMAND_DOC
