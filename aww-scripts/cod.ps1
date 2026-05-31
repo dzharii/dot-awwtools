@@ -1,4 +1,5 @@
 # cod.ps1
+# 2026-05-30
 # PowerShell 5.1 / PowerShell 7 compatible
 
 Set-StrictMode -Version 2.0
@@ -11,13 +12,60 @@ function Get-LogTimestamp {
     return (Get-Date).ToString("o")
 }
 
+function Write-Text {
+    param(
+        [Parameter(Mandatory = $false)]
+        [AllowEmptyString()]
+        [string] $Message = "",
+
+        [Parameter(Mandatory = $false)]
+        [AllowEmptyString()]
+        [string] $ForegroundColor = "",
+
+        [Parameter(Mandatory = $false)]
+        [AllowEmptyString()]
+        [string] $BackgroundColor = "",
+
+        [Parameter(Mandatory = $false)]
+        [switch] $NoNewline
+    )
+
+    $writeHostParams = @{
+        Object = $Message
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($ForegroundColor)) {
+        $writeHostParams.ForegroundColor = $ForegroundColor
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($BackgroundColor)) {
+        $writeHostParams.BackgroundColor = $BackgroundColor
+    }
+
+    if ($NoNewline) {
+        $writeHostParams.NoNewline = $true
+    }
+
+    Write-Host @writeHostParams
+}
+
 function Write-Log {
     param(
         [Parameter(Mandatory = $true)]
-        [string] $Message
+        [string] $Message,
+
+        [Parameter(Mandatory = $false)]
+        [AllowEmptyString()]
+        [string] $ForegroundColor = "",
+
+        [Parameter(Mandatory = $false)]
+        [AllowEmptyString()]
+        [string] $BackgroundColor = ""
     )
 
-    Write-Host "[$(Get-LogTimestamp)] $Message"
+    Write-Text "[$(Get-LogTimestamp)] $Message" `
+        -ForegroundColor $ForegroundColor `
+        -BackgroundColor $BackgroundColor
 }
 
 function Write-LogError {
@@ -26,36 +74,7 @@ function Write-LogError {
         [string] $Message
     )
 
-    [Console]::Error.WriteLine("[$(Get-LogTimestamp)] $Message")
-}
-
-function Get-CurrentPlatform {
-    $isWindowsVar = Get-Variable -Name IsWindows -ErrorAction SilentlyContinue
-    $isLinuxVar = Get-Variable -Name IsLinux -ErrorAction SilentlyContinue
-
-    if ($null -ne $isWindowsVar -and [bool]$isWindowsVar.Value) {
-        return "Windows"
-    }
-
-    if ($null -ne $isLinuxVar -and [bool]$isLinuxVar.Value) {
-        return "Linux"
-    }
-
-    if ($env:OS -eq "Windows_NT") {
-        return "Windows"
-    }
-
-    return "Unknown"
-}
-
-function ConvertTo-PosixSingleQuotedString {
-    param(
-        [Parameter(Mandatory = $true)]
-        [AllowEmptyString()]
-        [string] $Value
-    )
-
-    return "'" + $Value.Replace("'", "'\''") + "'"
+    Write-Log $Message -ForegroundColor "Red"
 }
 
 function Format-CommandArgumentForLog {
@@ -94,6 +113,35 @@ function Format-CommandLineForLog {
     return [string]::Join(" ", $parts)
 }
 
+function Get-CurrentPlatform {
+    $isWindowsVar = Get-Variable -Name IsWindows -ErrorAction SilentlyContinue
+    $isLinuxVar = Get-Variable -Name IsLinux -ErrorAction SilentlyContinue
+
+    if ($null -ne $isWindowsVar -and [bool]$isWindowsVar.Value) {
+        return "Windows"
+    }
+
+    if ($null -ne $isLinuxVar -and [bool]$isLinuxVar.Value) {
+        return "Linux"
+    }
+
+    if ($env:OS -eq "Windows_NT") {
+        return "Windows"
+    }
+
+    return "Unknown"
+}
+
+function ConvertTo-PosixSingleQuotedString {
+    param(
+        [Parameter(Mandatory = $true)]
+        [AllowEmptyString()]
+        [string] $Value
+    )
+
+    return "'" + $Value.Replace("'", "'\''") + "'"
+}
+
 function Get-NativeExitCode {
     if ($null -ne $LASTEXITCODE) {
         return [int]$LASTEXITCODE
@@ -123,16 +171,79 @@ function Set-ProcessEnv {
     )
 }
 
-if (-not $args -or $args.Count -eq 0) {
-    [Console]::Error.WriteLine("Usage: cod.ps1 <prompt>")
-    exit 1
+function Read-CodexPrompt {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $WorkingDirectory
+    )
+
+    Write-Text ""
+    Write-Text "Codex task input" -ForegroundColor "Cyan"
+    Write-Text "Current directory: $WorkingDirectory"
+    Write-Text ""
+    Write-Text "Type the task you want Codex to execute."
+    Write-Text "Press Enter to submit."
+    Write-Text "Press Shift+Enter for a new line when PSReadLine is available."
+    Write-Text "Press Ctrl+C to cancel."
+    Write-Text "Submit an empty prompt to cancel."
+    Write-Text ""
+
+    try {
+        Import-Module PSReadLine -ErrorAction Stop
+
+        Write-Text "codex> " -ForegroundColor "Magenta" -NoNewline
+
+        $value = [Microsoft.PowerShell.PSConsoleReadLine]::ReadLine(
+            $Host.Runspace,
+            $ExecutionContext
+        )
+
+        if ($null -eq $value) {
+            return $null
+        }
+
+        return $value.Trim()
+    }
+    catch [System.OperationCanceledException] {
+        return $null
+    }
+    catch [System.Management.Automation.PipelineStoppedException] {
+        return $null
+    }
+    catch {
+        Write-Text "PSReadLine is not available. Falling back to Read-Host." -ForegroundColor "Cyan"
+
+        try {
+            $value = Read-Host "codex"
+
+            if ($null -eq $value) {
+                return $null
+            }
+
+            return $value.Trim()
+        }
+        catch {
+            return $null
+        }
+    }
 }
 
-$Prompt = [string]::Join(" ", $args)
-$Platform = Get-CurrentPlatform
 $WorkingDirectory = (Get-Location).Path
+$Platform = Get-CurrentPlatform
 $StartTime = Get-Date
 $ExitCode = 1
+
+if (-not $args -or $args.Count -eq 0) {
+    $Prompt = Read-CodexPrompt -WorkingDirectory $WorkingDirectory
+
+    if ([string]::IsNullOrWhiteSpace($Prompt)) {
+        Write-Log "Status: Cancelled, empty prompt" -ForegroundColor "Cyan"
+        exit 0
+    }
+}
+else {
+    $Prompt = [string]::Join(" ", $args)
+}
 
 $ReasoningConfig = "model_reasoning_effort=`"$ReasoningEffort`""
 
@@ -141,14 +252,16 @@ if (-not $ScriptPath) {
     $ScriptPath = "<unknown>"
 }
 
-Write-Log "Start: $($StartTime.ToString("o"))"
+Write-Log "Start: $($StartTime.ToString("o"))" -ForegroundColor "Cyan"
 Write-Log "Script: $ScriptPath"
 Write-Log "PowerShell version: $($PSVersionTable.PSVersion.ToString())"
 Write-Log "Directory: $WorkingDirectory"
 Write-Log "Platform: $Platform"
 Write-Log "Model: $Model"
 Write-Log "Reasoning: $ReasoningEffort"
-Write-Log "Prompt: $Prompt"
+
+Write-Log "Prompt:" -ForegroundColor "Cyan"
+Write-Text $Prompt -ForegroundColor "Magenta"
 
 $oldNoUpdateNotifier = [Environment]::GetEnvironmentVariable(
     "NO_UPDATE_NOTIFIER",
@@ -212,8 +325,9 @@ try {
 
         $CommandLine = Format-CommandLineForLog "wsl.exe" $WslArgs
 
-        Write-Log "Runtime: WSL default distro"
-        Write-Log "Command start: $CommandLine"
+        Write-Log "Runtime: WSL default distro" -ForegroundColor "Cyan"
+        Write-Log "Command start:" -ForegroundColor "Cyan"
+        Write-Text $CommandLine -ForegroundColor "Magenta"
 
         $CommandStartTime = Get-Date
         & wsl.exe @WslArgs
@@ -221,7 +335,7 @@ try {
         $CommandEndTime = Get-Date
         $CommandDuration = $CommandEndTime - $CommandStartTime
 
-        Write-Log "Command result: exit code $ExitCode"
+        Write-Log "Command result: exit code $ExitCode" -ForegroundColor "Cyan"
         Write-Log ("Command duration: {0:N2}s" -f $CommandDuration.TotalSeconds)
     }
     elseif ($Platform -eq "Linux") {
@@ -237,8 +351,9 @@ try {
 
         $CommandLine = Format-CommandLineForLog "codex" $CodexArgs
 
-        Write-Log "Runtime: native"
-        Write-Log "Command start: $CommandLine"
+        Write-Log "Runtime: native" -ForegroundColor "Cyan"
+        Write-Log "Command start:" -ForegroundColor "Cyan"
+        Write-Text $CommandLine -ForegroundColor "Magenta"
 
         $CommandStartTime = Get-Date
         $Prompt | & codex @CodexArgs
@@ -246,7 +361,7 @@ try {
         $CommandEndTime = Get-Date
         $CommandDuration = $CommandEndTime - $CommandStartTime
 
-        Write-Log "Command result: exit code $ExitCode"
+        Write-Log "Command result: exit code $ExitCode" -ForegroundColor "Cyan"
         Write-Log ("Command duration: {0:N2}s" -f $CommandDuration.TotalSeconds)
     }
     else {
@@ -267,11 +382,11 @@ finally {
 $EndTime = Get-Date
 $Duration = $EndTime - $StartTime
 
-Write-Log "End: $($EndTime.ToString("o"))"
+Write-Log "End: $($EndTime.ToString("o"))" -ForegroundColor "Cyan"
 Write-Log ("Total duration: {0:N2}s" -f $Duration.TotalSeconds)
 
 if ($ExitCode -eq 0) {
-    Write-Log "Status: Success"
+    Write-Log "Status: Success" -ForegroundColor "Green"
 }
 else {
     Write-LogError "Status: Failed, exit code $ExitCode"
