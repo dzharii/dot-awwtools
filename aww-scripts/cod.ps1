@@ -5,7 +5,9 @@
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = "Stop"
 
-$Model = "gpt-5.4-mini"
+# This model is dumb
+# $Model = "gpt-5.4-mini"
+$Model = "gpt-5.5"
 $ReasoningEffort = "medium"
 
 function Get-LogTimestamp {
