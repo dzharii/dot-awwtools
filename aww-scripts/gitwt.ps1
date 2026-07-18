@@ -12,16 +12,16 @@ if (Get-Variable -Name PSNativeCommandUseErrorActionPreference -ErrorAction Sile
     $PSNativeCommandUseErrorActionPreference = $false
 }
 
-$SCRIPT:COMMAND_NAME = "gitwt.ps1"
-$SCRIPT:COMMAND_HELP = "help"
-$SCRIPT:COMMAND_NEW  = "new"
-$SCRIPT:COMMAND_LIST = "list"
-$SCRIPT:COMMAND_DOC  = "doc"
-$SCRIPT:COMMAND_GO   = "go"
-$SCRIPT:COMMAND_CD   = "cd"
+$COMMAND_NAME = "gitwt.ps1"
+$COMMAND_HELP = "help"
+$COMMAND_NEW  = "new"
+$COMMAND_LIST = "list"
+$COMMAND_DOC  = "doc"
+$COMMAND_GO   = "go"
+$COMMAND_CD   = "cd"
 
-$SCRIPT:DOC_FILE_NAME = "gitwt.md.html"
-$SCRIPT:InvocationLine = $SCRIPT:COMMAND_NAME
+$DOC_FILE_NAME = "gitwt.md.html"
+$InvocationLine = $COMMAND_NAME
 
 function Get-ScriptFolderPath {
     if ($PSScriptRoot) {
@@ -35,7 +35,7 @@ function Get-ScriptFolderPath {
     return (Get-Location).Path
 }
 
-$SCRIPT:ScriptFolderPath = Get-ScriptFolderPath
+$ScriptFolderPath = Get-ScriptFolderPath
 
 function Use-Color {
     if ($env:NO_COLOR) {
@@ -430,7 +430,7 @@ function Assert-InGitRepository {
     $root = Get-GitRepositoryRoot
 
     if (-not $root) {
-        throw $SCRIPT:COMMAND_NAME + " must be run inside a Git repository for this command."
+        throw $COMMAND_NAME + " must be run inside a Git repository for this command."
     }
 
     return $root
@@ -1097,7 +1097,7 @@ function Write-Help {
         $context = $null
     }
 
-    Write-CommandHeader -CommandLine $SCRIPT:InvocationLine
+    Write-CommandHeader -CommandLine $InvocationLine
     Write-Blank
 
     if ($context) {
@@ -1114,11 +1114,11 @@ function Write-Help {
 
     Write-Section "Commands"
 
-    $newCommand = $SCRIPT:COMMAND_NAME + " " + $SCRIPT:COMMAND_NEW
-    $listCommand = $SCRIPT:COMMAND_NAME + " " + $SCRIPT:COMMAND_LIST
-    $docCommand = $SCRIPT:COMMAND_NAME + " " + $SCRIPT:COMMAND_DOC
-    $goCommand = $SCRIPT:COMMAND_NAME + " " + $SCRIPT:COMMAND_GO
-    $cdCommand = $SCRIPT:COMMAND_NAME + " " + $SCRIPT:COMMAND_CD
+    $newCommand = $COMMAND_NAME + " " + $COMMAND_NEW
+    $listCommand = $COMMAND_NAME + " " + $COMMAND_LIST
+    $docCommand = $COMMAND_NAME + " " + $COMMAND_DOC
+    $goCommand = $COMMAND_NAME + " " + $COMMAND_GO
+    $cdCommand = $COMMAND_NAME + " " + $COMMAND_CD
 
     if ($context) {
         $fromDetail = "From:    " + $context.BranchDisplay
@@ -1166,7 +1166,7 @@ function Write-Help {
 function Write-List {
     $null = Assert-InGitRepository
 
-    Write-CommandHeader -CommandLine $SCRIPT:InvocationLine
+    Write-CommandHeader -CommandLine $InvocationLine
 
     Write-Section "Commands"
     Write-WrappedLine -Indent "" -Text "Refreshing worktree metadata..." -Kind "muted"
@@ -1183,14 +1183,14 @@ function New-Worktree {
     $context = Get-RepositoryContext
 
     if (-not $context) {
-        throw $SCRIPT:COMMAND_NAME + " must be run inside a Git repository for this command."
+        throw $COMMAND_NAME + " must be run inside a Git repository for this command."
     }
 
     if (Test-Path -LiteralPath $context.TargetPath) {
         throw "Target worktree folder already exists: " + $context.TargetPath
     }
 
-    Write-CommandHeader -CommandLine $SCRIPT:InvocationLine
+    Write-CommandHeader -CommandLine $InvocationLine
     Write-Blank
 
     Write-Field -Name "Repository" -Value $context.RepoName
@@ -1264,10 +1264,10 @@ function Go-ToLatestWorktree {
     $context = Get-RepositoryContext
 
     if (-not $context) {
-        throw $SCRIPT:COMMAND_NAME + " must be run inside a Git repository for this command."
+        throw $COMMAND_NAME + " must be run inside a Git repository for this command."
     }
 
-    Write-CommandHeader -CommandLine $SCRIPT:InvocationLine
+    Write-CommandHeader -CommandLine $InvocationLine
     Write-Blank
 
     Write-Field -Name "Repository" -Value $context.RepoName
@@ -1308,13 +1308,13 @@ function Go-ToLatestWorktree {
 }
 
 function Open-Doc {
-    $docPath = Join-Path $SCRIPT:ScriptFolderPath $SCRIPT:DOC_FILE_NAME
+    $docPath = Join-Path $ScriptFolderPath $DOC_FILE_NAME
 
     if (-not (Test-Path -LiteralPath $docPath)) {
         throw "Reference file was not found: " + $docPath
     }
 
-    Write-CommandHeader -CommandLine $SCRIPT:InvocationLine
+    Write-CommandHeader -CommandLine $InvocationLine
     Write-Blank
 
     Write-Field -Name "Reference" -Value $docPath -Kind "muted"
@@ -1355,7 +1355,7 @@ function Open-Doc {
 function Write-UnknownCommand {
     param([string]$Name)
 
-    Write-CommandHeader -CommandLine $SCRIPT:InvocationLine
+    Write-CommandHeader -CommandLine $InvocationLine
     Write-Blank
 
     $separator = "=" * 80
@@ -1375,43 +1375,43 @@ try {
         $normalizedCommand = $Command.Trim().ToLowerInvariant()
     }
     else {
-        $normalizedCommand = $SCRIPT:COMMAND_HELP
+        $normalizedCommand = $COMMAND_HELP
     }
 
     if ($normalizedCommand -eq "") {
-        $SCRIPT:InvocationLine = $SCRIPT:COMMAND_NAME
+        $InvocationLine = $COMMAND_NAME
         Write-Help
     }
-    elseif ($normalizedCommand -eq $SCRIPT:COMMAND_HELP) {
-        $SCRIPT:InvocationLine = $SCRIPT:COMMAND_NAME + " " + $SCRIPT:COMMAND_HELP
+    elseif ($normalizedCommand -eq $COMMAND_HELP) {
+        $InvocationLine = $COMMAND_NAME + " " + $COMMAND_HELP
         Write-Help
     }
-    elseif ($normalizedCommand -eq $SCRIPT:COMMAND_NEW) {
-        $SCRIPT:InvocationLine = $SCRIPT:COMMAND_NAME + " " + $SCRIPT:COMMAND_NEW
+    elseif ($normalizedCommand -eq $COMMAND_NEW) {
+        $InvocationLine = $COMMAND_NAME + " " + $COMMAND_NEW
         Assert-GitAvailable
         New-Worktree
     }
-    elseif ($normalizedCommand -eq $SCRIPT:COMMAND_LIST) {
-        $SCRIPT:InvocationLine = $SCRIPT:COMMAND_NAME + " " + $SCRIPT:COMMAND_LIST
+    elseif ($normalizedCommand -eq $COMMAND_LIST) {
+        $InvocationLine = $COMMAND_NAME + " " + $COMMAND_LIST
         Assert-GitAvailable
         Write-List
     }
-    elseif ($normalizedCommand -eq $SCRIPT:COMMAND_GO) {
-        $SCRIPT:InvocationLine = $SCRIPT:COMMAND_NAME + " " + $SCRIPT:COMMAND_GO
+    elseif ($normalizedCommand -eq $COMMAND_GO) {
+        $InvocationLine = $COMMAND_NAME + " " + $COMMAND_GO
         Assert-GitAvailable
         Go-ToLatestWorktree
     }
-    elseif ($normalizedCommand -eq $SCRIPT:COMMAND_CD) {
-        $SCRIPT:InvocationLine = $SCRIPT:COMMAND_NAME + " " + $SCRIPT:COMMAND_CD
+    elseif ($normalizedCommand -eq $COMMAND_CD) {
+        $InvocationLine = $COMMAND_NAME + " " + $COMMAND_CD
         Assert-GitAvailable
         Go-ToLatestWorktree
     }
-    elseif ($normalizedCommand -eq $SCRIPT:COMMAND_DOC) {
-        $SCRIPT:InvocationLine = $SCRIPT:COMMAND_NAME + " " + $SCRIPT:COMMAND_DOC
+    elseif ($normalizedCommand -eq $COMMAND_DOC) {
+        $InvocationLine = $COMMAND_NAME + " " + $COMMAND_DOC
         Open-Doc
     }
     else {
-        $SCRIPT:InvocationLine = $SCRIPT:COMMAND_NAME + " " + $Command
+        $InvocationLine = $COMMAND_NAME + " " + $Command
         Write-UnknownCommand -Name $Command
         exit 1
     }
